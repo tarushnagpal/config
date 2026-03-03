@@ -51,17 +51,20 @@
 
 (after! evil
   ;; Keep Evil disabled in minibuffer/prompt UIs, but force normal-state Evil
-  ;; in Dired and Magit buffers.
+  ;; in Dired buffers.
   (set-evil-initial-state! 'dired-mode 'normal)
+
+  ;; Use Emacs state for Magit so that all native magit keybindings (s, p, c,
+  ;; F, b, d, etc.) work out of the box.  Our IJKL navigation is layered on
+  ;; top via emacs-state bindings in the Magit section below.
   (set-evil-initial-state! '(magit-mode
                              magit-status-mode
                              magit-revision-mode
                              magit-diff-mode
                              magit-process-mode)
-                           'normal)
+                           'emacs)
 
-  (add-hook 'dired-mode-hook (lambda () (evil-local-mode 1)))
-  (add-hook 'magit-mode-hook (lambda () (evil-local-mode 1))))
+  (add-hook 'dired-mode-hook (lambda () (evil-local-mode 1))))
 
 (map! :map evil-window-map
       "i" #'evil-window-up
@@ -74,12 +77,12 @@
       "L" #'+evil/window-move-right)
 
 (after! magit
-  (map! :map magit-mode-map
-        :nv "i" #'magit-section-backward
-        :nv "k" #'magit-section-forward
-        :nv "j" #'magit-section-backward-sibling
-        :nv "l" #'magit-section-forward-sibling
-        :nv ";" #'magit-section-toggle))
+  (evil-define-key 'emacs magit-mode-map
+    (kbd "i") #'magit-section-backward
+    (kbd "k") #'magit-section-forward
+    (kbd "j") #'magit-section-backward-sibling
+    (kbd "l") #'magit-section-forward-sibling
+    (kbd ";") #'magit-section-toggle))
 
 (after! dired
   (map! :map dired-mode-map
