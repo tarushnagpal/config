@@ -1,0 +1,209 @@
+#+title: Config
+
+test
+* Doom settings
+#+begin_src emacs-lisp
+
+(setq doom-font (font-spec :size 15))
+(custom-theme-set-faces!
+  'doom-one
+  '(org-level-8 :inherit outline-3 :height 1.0)
+  '(org-level-7 :inherit outline-3 :height 1.0)
+  '(org-level-6 :inherit outline-3 :height 1.1)
+  '(org-level-5 :inherit outline-3 :height 1.2)
+  '(org-level-4 :inherit outline-3 :height 1.3)
+  '(org-level-3 :inherit outline-3 :height 1.4)
+  '(org-level-2 :inherit outline-2 :height 1.5)
+  '(org-level-1 :inherit outline-1 :height 1.6)
+  '(org-document-title :height 1.8 :bold t :underline nil))
+(setq doom-theme 'doom-one)
+
+(setq display-line-numbers-type 'relative)
+
+(map! :leader
+      :desc "Comment line" "-" #'comment-line)
+
+(setq org-directory "~/org/")
+
+(setq confirm-kill-emacs nil)
+;; (setq initial-buffer-choice )
+#+end_src
+
+* IJKL Navigation Setup
+
+This section remaps the core Vim movement keys from =hjkl= to the =ijkl=
+"inverted-T" layout and carefully relocates all displaced keys.
+
+** Keybinding Reference
+
+| Key | Normal          | Visual          | Insert  | Operator          | Motion/Minibuf |
+|-----+-----------------+-----------------+---------+-------------------+----------------|
+| i   | Up              | Extend up       | type i  | (text obj: inner) | type i         |
+| k   | Down            | Extend down     | type k  | (unchanged)       | type k         |
+| j   | Left            | Extend left     | type j  | (unchanged)       | type j         |
+| l   | Right           | Extend right    | type l  | (unchanged)       | type l         |
+| ;   | Enter insert    | —               | type ;  | —                 | type ;         |
+| :   | Insert at BOL   | —               | type :  | —                 | type :         |
+| K   | Join lines      | Join lines      | —       | —                 | —              |
+| u   | Undo            | Undo            | —       | —                 | —              |
+| U   | Redo            | Redo            | —       | —                 | —              |
+| M-; | Ex command      | Ex command      | —       | —                 | —              |
+
+** Core Navigation (Normal, Visual)
+
+Movement keys are bound in =normal= and =visual= states only.
+- *Operator-pending* is excluded so text objects (=ciw=, =di(=, =yi"=) work.
+- *Motion state* is excluded so minibuffer/M-x/Vertico typing works normally.
+
+#+begin_src elisp
+(after! evil
+  (defun +custom/apply-ijkl-core-bindings ()
+
+    ;; Core movement in normal + visual states.
+    (define-key evil-normal-state-map (kbd "i") #'evil-previous-line)
+    (define-key evil-normal-state-map (kbd "k") #'evil-next-line)
+    (define-key evil-normal-state-map (kbd "j") #'evil-backward-char)
+    (define-key evil-normal-state-map (kbd "l") #'evil-forward-char)
+    (define-key evil-visual-state-map (kbd "i") #'evil-previous-line)
+    (define-key evil-visual-state-map (kbd "k") #'evil-next-line)
+    (define-key evil-visual-state-map (kbd "j") #'evil-backward-char)
+    (define-key evil-visual-state-map (kbd "l") #'evil-forward-char)
+
+    ;; Displaced keys.
+    (define-key evil-normal-state-map (kbd ";") #'evil-insert)
+    (define-key evil-normal-state-map (kbd ":") #'evil-insert-line)
+    (define-key evil-normal-state-map (kbd "K") #'evil-join)
+    (define-key evil-visual-state-map (kbd "K") #'evil-join)
+    (define-key evil-normal-state-map (kbd "U") #'evil-redo)
+    (define-key evil-visual-state-map (kbd "U") #'evil-redo)
+    (define-key evil-normal-state-map (kbd "M-;") #'evil-ex)
+    (define-key evil-visual-state-map (kbd "M-;") #'evil-ex))
+
+  ;; Apply once now, then re-apply after Doom modules load to win precedence.
+  (+custom/apply-ijkl-core-bindings)
+  (add-hook 'doom-after-modules-config-hook #'+custom/apply-ijkl-core-bindings))
+#+end_src
+
+** Evil State For Dired and Magit
+
+#+begin_src elisp
+(after! evil
+  ;; Keep Evil disabled in minibuffer/prompt UIs, but force normal-state Evil
+  ;; in Dired and Magit buffers.
+  (set-evil-initial-state! 'dired-mode 'normal)
+  (set-evil-initial-state! '(magit-mode
+                             magit-status-mode
+                             magit-revision-mode
+                             magit-diff-mode
+                             magit-process-mode)
+                           'normal)
+
+  (add-hook 'dired-mode-hook (lambda () (evil-local-mode 1)))
+  (add-hook 'magit-mode-hook (lambda () (evil-local-mode 1))))
+#+end_src
+
+** Window Management (SPC w / C-w)
+
+Doom binds =SPC w= to =evil-window-map= by default, which contains all the
+standard window operations (split, close, resize, rotate, etc.). We add our
+ijkl navigation directly into that existing map so nothing is lost.
+
+#+begin_src elisp
+(map! :map evil-window-map
+      "i" #'evil-window-up
+      "k" #'evil-window-down
+      "j" #'evil-window-left
+      "l" #'evil-window-right
+      "I" #'+evil/window-move-up
+      "K" #'+evil/window-move-down
+      "J" #'+evil/window-move-left
+      "L" #'+evil/window-move-right)
+#+end_src
+
+** Module-Specific Fixes
+
+Evil-collection often forces =hjkl= in special buffers. These hooks ensure
+your ijkl layout persists in the most common tools.
+
+*** Magit
+
+#+begin_src elisp
+(after! magit
+  (map! :map magit-mode-map
+        :nv "i" #'magit-section-backward
+        :nv "k" #'magit-section-forward
+        :nv "j" #'magit-section-backward-sibling
+        :nv "l" #'magit-section-forward-sibling
+        :nv ";" #'magit-section-toggle))
+#+end_src
+
+*** Dired
+
+#+begin_src elisp
+(after! dired
+  (map! :map dired-mode-map
+        :nv "i" #'dired-previous-line
+        :nv "k" #'dired-next-line
+        :nv "j" #'dired-up-directory
+        :nv "l" #'dired-find-file))
+#+end_src
+
+*** Org Mode (evil-org)
+
+=evil-org= adds text-object bindings on =i= in visual state (inner-object,
+inner-element, etc.) which override our global ijkl movement. We force ijkl
+back onto the =evil-org-mode-map= so Org buffers stay consistent.
+
+#+begin_src elisp
+(after! evil-org
+  (map! :map evil-org-mode-map
+        :nv "i" #'evil-previous-line
+        :nv "k" #'evil-next-line
+        :nv "j" #'evil-backward-char
+        :nv "l" #'evil-forward-char))
+#+end_src
+
+* Custom functons
+#+begin_src elisp
+(after! vterm
+  (set-popup-rule! "^\\*doom:vterm-popup:"
+    :side 'bottom
+    :size 0.16
+    :vslot -4
+    :select t
+    :quit nil
+    :ttl 0))
+
+(defun +custom/open-code-terminal ()
+  "Open opencode in a new right-most split." 
+  (interactive)
+  ;; Find the right-most window in the current frame.
+  (let* ((rightmost-window
+          (let ((best (selected-window))
+                (best-right -1))
+            (dolist (win (window-list nil 'nomini) best)
+              (let ((right (nth 2 (window-edges win))))
+                (when (> right best-right)
+                  (setq best-right right
+                        best win))))))
+         (target-width 80)
+         (evil-vsplit-window-right t))
+    (select-window rightmost-window)
+    ;; 1. Split at the right-most edge.
+    (evil-window-vsplit)
+    ;; 3. Resize the new window to a fixed width.
+    (window-resize (selected-window)
+                   (- target-width (window-total-width))
+                   t)
+    ;; 4. Open vterm in this new window.
+    (+vterm/here nil)
+    ;; 5. Start opencode.
+    (vterm-send-string "opencode")
+    (vterm-send-return)))
+
+;; Now, let's bind it to a Leader key.
+;; Since it's a 'code' related terminal, 'SPC o c' (Open Code) is a good fit.
+(map! :leader
+      (:prefix ("o" . "open")
+       :desc "Open Code Terminal" "c" #'+custom/open-code-terminal))
+#+end_src
