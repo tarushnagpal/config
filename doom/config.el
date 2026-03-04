@@ -57,12 +57,12 @@
   ;; Use Emacs state for Magit so that all native magit keybindings (s, p, c,
   ;; F, b, d, etc.) work out of the box.  Our IJKL navigation is layered on
   ;; top via emacs-state bindings in the Magit section below.
-  (set-evil-initial-state! '(magit-mode
-                             magit-status-mode
-                             magit-revision-mode
-                             magit-diff-mode
-                             magit-process-mode)
-                           'emacs)
+  ;; (set-evil-initial-state! '(magit-mode
+  ;;                            magit-status-mode
+  ;;                            magit-revision-mode
+  ;;                            magit-diff-mode
+  ;;                            magit-process-mode)
+  ;;                          'emacs)
 
   (add-hook 'dired-mode-hook (lambda () (evil-local-mode 1))))
 
@@ -98,17 +98,19 @@
         :nv "j" #'evil-backward-char
         :nv "l" #'evil-forward-char))
 
-(after! vterm
-  (set-popup-rule! "^\\*doom:vterm-popup:"
-    :side 'bottom
-    :size 0.16
-    :vslot -4
-    :select t
-    :quit nil
-    :ttl 0))
+(defun my/vterm-bottom ()
+  (interactive)
+  (let ((window (split-window (frame-root-window) -15 'below))
+        (dir (or (doom-project-root) default-directory)))
+    (select-window window)
+    (+vterm/here dir)))
+
+(map! :leader
+      :desc "vterm bottom"
+      "o t" #'my/vterm-bottom)
 
 (defun +custom/open-code-terminal ()
-  "Open opencode in a new right-most split." 
+  "Open opencode in a new right-most split."
   (interactive)
   ;; Find the right-most window in the current frame.
   (let* ((rightmost-window
@@ -119,7 +121,7 @@
                 (when (> right best-right)
                   (setq best-right right
                         best win))))))
-         (target-width 80)
+         (target-width 100)
          (evil-vsplit-window-right t))
     (select-window rightmost-window)
     ;; 1. Split at the right-most edge.
