@@ -1,3 +1,8 @@
+;; Tabs length
+(setq-default indent-tabs-mode t)
+(setq-default tab-width 4)
+
+;; font
 (setq doom-font (font-spec :size 15))
 (custom-theme-set-faces!
   'doom-one
@@ -66,6 +71,21 @@
 
   (add-hook 'dired-mode-hook (lambda () (evil-local-mode 1))))
 
+(defun +custom/window-top-right ()
+  "Select the top-right window in the current frame."
+  (interactive)
+  (let ((best (selected-window))
+        (best-right -1))
+    (walk-windows
+     (lambda (w)
+       (let ((edges (window-edges w)))
+         (when (and (= (nth 1 edges) 0)            ;; top row
+                    (> (nth 2 edges) best-right))   ;; rightmost
+           (setq best-right (nth 2 edges)
+                 best w))))
+     nil (selected-frame))
+    (select-window best)))
+
 (map! :map evil-window-map
       "i" #'evil-window-up
       "k" #'evil-window-down
@@ -74,9 +94,12 @@
       "I" #'+evil/window-move-up
       "K" #'+evil/window-move-down
       "J" #'+evil/window-move-left
-      "L" #'+evil/window-move-right)
+      "L" #'+evil/window-move-right
+      "t" #'+custom/window-top-right)
 
 (after! magit
+  (setq magit-branch-read-upstream-first 'fallback)
+  (define-key magit-mode-map (kbd "SPC") nil)
   (evil-define-key 'emacs magit-mode-map
     (kbd "i") #'magit-section-backward
     (kbd "k") #'magit-section-forward
@@ -90,6 +113,10 @@
         :nv "k" #'dired-next-line
         :nv "j" #'dired-up-directory
         :nv "l" #'dired-find-file))
+
+(after! vterm
+  (evil-define-key 'insert vterm-mode-map
+    (kbd "C-r") #'vterm--self-insert))
 
 (after! evil-org
   (map! :map evil-org-mode-map

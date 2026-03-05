@@ -8,6 +8,8 @@
         "messages_half_page_up": "<leader>u",
         "messages_half_page_down": "<leader>d",
         "messages_undo": "<leader>w",
-        "command_list": "<leader>p"
+        "command_list": "<leader>p",
+		"messages_last": "<leader>$",
+		"messages_first": "<leader>0"
     }
 }
