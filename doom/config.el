@@ -3,7 +3,7 @@
 (setq-default tab-width 4)
 
 ;; font
-(setq doom-font (font-spec :size 15))
+(setq doom-font (font-spec :size 14))
 (custom-theme-set-faces!
   'doom-one
   '(org-level-8 :inherit outline-3 :height 1.0)
@@ -124,6 +124,40 @@
         :nv "k" #'evil-next-line
         :nv "j" #'evil-backward-char
         :nv "l" #'evil-forward-char))
+
+(after! json-ts-mode
+  (setf (alist-get 'json-mode major-mode-remap-defaults) nil))
+
+(defun +detect-project-formatter-h ()
+  "Set buffer-local formatter to biome when biome.json is found in the project."
+  (when (locate-dominating-file default-directory "biome.json")
+    (setq-local apheleia-formatter 'biome)))
+
+(add-hook 'typescript-ts-mode-hook #'+detect-project-formatter-h)
+(add-hook 'tsx-ts-mode-hook        #'+detect-project-formatter-h)
+(add-hook 'js-ts-mode-hook         #'+detect-project-formatter-h)
+(add-hook 'json-ts-mode-hook       #'+detect-project-formatter-h)
+(add-hook 'jsonc-mode-hook         #'+detect-project-formatter-h)
+
+;; (after! flycheck
+;;   (flycheck-define-checker biome-check
+;;     "A syntax checker using Biome (biomejs.dev)."
+;;     :command ("biome" "check" "--colors=off"
+;;               source-original)
+;;     :error-patterns
+;;     ((warning line-start (file-name) ":" line ":" column " "
+;;               (id (one-or-more (not (any " " "\t")))) (zero-or-more not-newline) "\n"
+;;               "\n"
+;;               "  ! " (message (one-or-more not-newline)) line-end)
+;;      (error line-start (file-name) ":" line ":" column " "
+;;             "parse" (zero-or-more not-newline) "\n"
+;;             "\n"
+;;             "  × " (message (one-or-more not-newline)) line-end))
+;;     :modes (typescript-ts-mode tsx-ts-mode js-ts-mode json-ts-mode jsonc-mode)
+;;     :predicate (lambda () (locate-dominating-file default-directory "biome.json")))
+
+;;   (add-to-list 'flycheck-checkers 'biome-check)
+;;   (flycheck-add-next-checker 'eglot-check '(warning . biome-check)))
 
 (defun my/vterm-bottom ()
   (interactive)
