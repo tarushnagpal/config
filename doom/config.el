@@ -5,7 +5,7 @@
 ;; font
 (setq doom-font (font-spec :size 14))
 (custom-theme-set-faces!
-  'doom-one
+  'doom-dracula
   '(org-level-8 :inherit outline-3 :height 1.0)
   '(org-level-7 :inherit outline-3 :height 1.0)
   '(org-level-6 :inherit outline-3 :height 1.1)
@@ -15,7 +15,7 @@
   '(org-level-2 :inherit outline-2 :height 1.5)
   '(org-level-1 :inherit outline-1 :height 1.6)
   '(org-document-title :height 1.8 :bold t :underline nil))
-(setq doom-theme 'doom-one)
+(setq doom-theme 'doom-dracula)
 
 (setq display-line-numbers-type 'relative)
 
@@ -26,6 +26,8 @@
 
 (setq confirm-kill-emacs nil)
 ;; (setq initial-buffer-choice )
+
+(setq bash-completion-bash-executable "/opt/homebrew/bin/bash")
 
 (after! evil
   (defun +custom/apply-ijkl-core-bindings ()
