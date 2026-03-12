@@ -12,6 +12,7 @@
 
 ;; To install SOME-PACKAGE from MELPA, ELPA or emacsmirror:
 ;; (package! some-package)
+(package! ultra-scroll)
 (use-package doom-themes
   :ensure t
   :custom

@@ -23,9 +23,25 @@
       :desc "Comment line" "-" #'comment-line)
 
 (setq org-directory "~/org/")
+(setq mouse-wheel-follow-mouse 't) ;; scroll window under mouse
 
 (setq confirm-kill-emacs nil)
 ;; (setq initial-buffer-choice )
+
+(use-package! ultra-scroll
+  :init
+  (setq scroll-conservatively 3
+        scroll-margin 0)
+  :config
+  (ultra-scroll-mode 1))
+
+(setq pixel-scroll-precision-interpolate-page t)
+
+(after! evil
+  (define-key evil-normal-state-map (kbd "C-d") #'pixel-scroll-interpolate-down)
+  (define-key evil-normal-state-map (kbd "C-u") #'pixel-scroll-interpolate-up)
+  (define-key evil-visual-state-map (kbd "C-d") #'pixel-scroll-interpolate-down)
+  (define-key evil-visual-state-map (kbd "C-u") #'pixel-scroll-interpolate-up))
 
 (setq bash-completion-bash-executable "/opt/homebrew/bin/bash")
 
@@ -61,15 +77,9 @@
   ;; in Dired buffers.
   (set-evil-initial-state! 'dired-mode 'normal)
 
-  ;; Use Emacs state for Magit so that all native magit keybindings (s, p, c,
-  ;; F, b, d, etc.) work out of the box.  Our IJKL navigation is layered on
-  ;; top via emacs-state bindings in the Magit section below.
-  ;; (set-evil-initial-state! '(magit-mode
-  ;;                            magit-status-mode
-  ;;                            magit-revision-mode
-  ;;                            magit-diff-mode
-  ;;                            magit-process-mode)
-  ;;                          'emacs)
+  ;; Magit stays in Doom's default normal state (via evil-collection).
+  ;; IJKL navigation is layered on top via normal-state bindings in the
+  ;; Magit section below.
 
   (add-hook 'dired-mode-hook (lambda () (evil-local-mode 1))))
 
@@ -101,13 +111,12 @@
 
 (after! magit
   (setq magit-branch-read-upstream-first 'fallback)
-  (define-key magit-mode-map (kbd "SPC") nil)
-  (evil-define-key 'emacs magit-mode-map
-    (kbd "i") #'magit-section-backward
-    (kbd "k") #'magit-section-forward
-    (kbd "j") #'magit-section-backward-sibling
-    (kbd "l") #'magit-section-forward-sibling
-    (kbd ";") #'magit-section-toggle))
+  (map! :map magit-mode-map
+        :n "i" #'magit-section-backward
+        :n "k" #'magit-section-forward
+        :n "j" #'magit-section-backward-sibling
+        :n "l" #'magit-section-forward-sibling
+        :n ";" #'magit-section-toggle))
 
 (after! dired
   (map! :map dired-mode-map

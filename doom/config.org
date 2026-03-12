@@ -28,9 +28,42 @@
       :desc "Comment line" "-" #'comment-line)
 
 (setq org-directory "~/org/")
+(setq mouse-wheel-follow-mouse 't) ;; scroll window under mouse
 
 (setq confirm-kill-emacs nil)
 ;; (setq initial-buffer-choice )
+#+end_src
+
+* Ultra-scroll
+
+Smooth pixel-precise scrolling that handles tall images and high-speed
+trackpad/mouse input. Replaces =pixel-scroll-precision-mode=.
+
+#+begin_src elisp
+(use-package! ultra-scroll
+  :init
+  (setq scroll-conservatively 3
+        scroll-margin 0)
+  :config
+  (ultra-scroll-mode 1))
+#+end_src
+
+** Smooth keyboard scrolling (C-u / C-d)
+
+=ultra-scroll= only handles mouse/trackpad input. For smooth animated
+half-page scrolling with =C-u= / =C-d=, we enable the built-in
+=pixel-scroll-precision-interpolate-page= (activated by =ultra-scroll=
+under the hood) and remap Evil's scroll commands to the interpolated
+variants.
+
+#+begin_src elisp
+(setq pixel-scroll-precision-interpolate-page t)
+
+(after! evil
+  (define-key evil-normal-state-map (kbd "C-d") #'pixel-scroll-interpolate-down)
+  (define-key evil-normal-state-map (kbd "C-u") #'pixel-scroll-interpolate-up)
+  (define-key evil-visual-state-map (kbd "C-d") #'pixel-scroll-interpolate-down)
+  (define-key evil-visual-state-map (kbd "C-u") #'pixel-scroll-interpolate-up))
 #+end_src
 
 * Bash version
@@ -101,15 +134,9 @@ Movement keys are bound in =normal= and =visual= states only.
   ;; in Dired buffers.
   (set-evil-initial-state! 'dired-mode 'normal)
 
-  ;; Use Emacs state for Magit so that all native magit keybindings (s, p, c,
-  ;; F, b, d, etc.) work out of the box.  Our IJKL navigation is layered on
-  ;; top via emacs-state bindings in the Magit section below.
-  ;; (set-evil-initial-state! '(magit-mode
-  ;;                            magit-status-mode
-  ;;                            magit-revision-mode
-  ;;                            magit-diff-mode
-  ;;                            magit-process-mode)
-  ;;                          'emacs)
+  ;; Magit stays in Doom's default normal state (via evil-collection).
+  ;; IJKL navigation is layered on top via normal-state bindings in the
+  ;; Magit section below.
 
   (add-hook 'dired-mode-hook (lambda () (evil-local-mode 1))))
 #+end_src
@@ -155,19 +182,20 @@ your ijkl layout persists in the most common tools.
 
 *** Magit
 
-Magit buffers use Emacs state so all native keys (=s= stage, =p= push, =c=
-commit, etc.) work.  We overlay IJKL navigation in emacs state only.
+Magit buffers stay in Evil normal state (Doom's default via evil-collection).
+We overlay IJKL navigation in normal state so it coexists with all the
+standard evil-collection-magit bindings (=gr= refresh, =s= stage, =c= commit,
+=f= fetch, =F= pull, =[= / =]= sibling nav, etc.).
 
 #+begin_src elisp
 (after! magit
   (setq magit-branch-read-upstream-first 'fallback)
-  (define-key magit-mode-map (kbd "SPC") nil)
-  (evil-define-key 'emacs magit-mode-map
-    (kbd "i") #'magit-section-backward
-    (kbd "k") #'magit-section-forward
-    (kbd "j") #'magit-section-backward-sibling
-    (kbd "l") #'magit-section-forward-sibling
-    (kbd ";") #'magit-section-toggle))
+  (map! :map magit-mode-map
+        :n "i" #'magit-section-backward
+        :n "k" #'magit-section-forward
+        :n "j" #'magit-section-backward-sibling
+        :n "l" #'magit-section-forward-sibling
+        :n ";" #'magit-section-toggle))
 #+end_src
 
 *** Dired
