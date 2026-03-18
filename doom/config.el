@@ -1,3 +1,7 @@
+;; Projectile: use alien indexing (no caching, always fresh via fd/git)
+(setq projectile-indexing-method 'alien)
+(setq projectile-git-use-untracked-files t)
+
 ;; Tabs length
 (setq-default indent-tabs-mode t)
 (setq-default tab-width 4)
@@ -28,22 +32,51 @@
 (setq confirm-kill-emacs nil)
 ;; (setq initial-buffer-choice )
 
-(use-package! ultra-scroll
-  :init
-  (setq scroll-conservatively 3
-        scroll-margin 0)
+(use-package! doom-themes
+  :ensure t
+  :custom
+  ;; Global settings (defaults)
+  (doom-themes-enable-bold t)   ; if nil, bold is universally disabled
+  (doom-themes-enable-italic t) ; if nil, italics is universally disabled
+  ;; for treemacs users
+  (doom-themes-treemacs-theme "doom-atom") ; use "doom-colors" for less minimal icon theme
   :config
-  (ultra-scroll-mode 1))
+  ;; Enable flashing mode-line on errors
+  (doom-themes-visual-bell-config)
+  ;; Enable custom neotree theme (nerd-icons must be installed!)
+  (doom-themes-neotree-config)
+  ;; or for treemacs users
+  (doom-themes-treemacs-config)
+  ;; Corrects (and improves) org-mode's native fontification.
+  (doom-themes-org-config))
 
-(setq pixel-scroll-precision-interpolate-page t)
+(use-package! ultra-scroll
+ :init
+ (setq scroll-conservatively 3
+       scroll-margin 0)
+ :config
+ (pixel-scroll-precision-mode 1)  ;; required for pixel-scroll-precision-interpolate
+ (ultra-scroll-mode 1))
+
+(defun +custom/scroll-half-page-down ()
+  "Smooth animated half-page scroll down."
+  (interactive)
+  (pixel-scroll-precision-interpolate (- (/ (window-body-height nil t) 2))))
+
+(defun +custom/scroll-half-page-up ()
+  "Smooth animated half-page scroll up."
+  (interactive)
+  (pixel-scroll-precision-interpolate (/ (window-body-height nil t) 2)))
 
 (after! evil
-  (define-key evil-normal-state-map (kbd "C-d") #'pixel-scroll-interpolate-down)
-  (define-key evil-normal-state-map (kbd "C-u") #'pixel-scroll-interpolate-up)
-  (define-key evil-visual-state-map (kbd "C-d") #'pixel-scroll-interpolate-down)
-  (define-key evil-visual-state-map (kbd "C-u") #'pixel-scroll-interpolate-up))
+  (define-key evil-normal-state-map (kbd "C-d") #'+custom/scroll-half-page-down)
+  (define-key evil-normal-state-map (kbd "C-u") #'+custom/scroll-half-page-up)
+  (define-key evil-visual-state-map (kbd "C-d") #'+custom/scroll-half-page-down)
+  (define-key evil-visual-state-map (kbd "C-u") #'+custom/scroll-half-page-up))
 
 (setq bash-completion-bash-executable "/opt/homebrew/bin/bash")
+
+(map! :nv "gD" #'+lookup/references)
 
 (after! evil
   (defun +custom/apply-ijkl-core-bindings ()
@@ -125,19 +158,50 @@
         :nv "j" #'dired-up-directory
         :nv "l" #'dired-find-file))
 
-(after! vterm
-  (evil-define-key 'insert vterm-mode-map
-    (kbd "C-r") #'vterm--self-insert))
+(after! treemacs
+  (map! :map evil-treemacs-state-map
+        "i" #'treemacs-previous-line
+        "k" #'treemacs-next-line
+        "j" #'treemacs-root-up
+        "l" #'treemacs-RET-action
+        ";" #'treemacs-COLLAPSE-action))
 
-(after! evil-org
-  (map! :map evil-org-mode-map
+(after! vterm
+  (setq vterm-scroll-to-bottom-on-output nil)
+  (add-hook 'vterm-mode-hook
+    (lambda ()
+      (setq-local vterm-scroll-to-bottom-on-output nil)
+      (setq-local scroll-conservatively 101)))
+  (evil-define-key 'insert vterm-mode-map
+    (kbd "C-r") #'vterm--self-insert)
+  (map! :map vterm-mode-map
         :nv "i" #'evil-previous-line
         :nv "k" #'evil-next-line
         :nv "j" #'evil-backward-char
-        :nv "l" #'evil-forward-char))
+        :nv "l" #'evil-forward-char
+        :nv ";" #'evil-insert))
 
-(after! json-ts-mode
-  (setf (alist-get 'json-mode major-mode-remap-defaults) nil))
+(after! evil-org
+  ;; evil-org binds i-prefixed text objects (ie, ip, iR…) in normal state,
+  ;; which conflicts with our i=up remap. Remove those normal-state bindings
+  ;; so i can stay a plain key, then re-assert IJKL in normal+visual.
+  (evil-define-key 'normal evil-org-mode-map
+    (kbd "i") nil)
+  (map! :map evil-org-mode-map
+        :n "i" #'evil-previous-line
+        :n "k" #'evil-next-line
+        :n "j" #'evil-backward-char
+        :n "l" #'evil-forward-char
+        :v "i" #'evil-previous-line
+        :v "k" #'evil-next-line
+        :v "j" #'evil-backward-char
+        :v "l" #'evil-forward-char))
+
+(add-to-list 'major-mode-remap-alist '(json-ts-mode . json-mode))
+
+(after! eglot
+  (set-eglot-client! '(json-mode json-ts-mode)
+    '("vscode-json-language-server" "--stdio")))
 
 (defun +detect-project-formatter-h ()
   "Set buffer-local formatter to biome when biome.json is found in the project."
@@ -181,8 +245,8 @@
       :desc "vterm bottom"
       "o t" #'my/vterm-bottom)
 
-(defun +custom/open-code-terminal ()
-  "Open opencode in a new right-most split."
+(defun +custom/claude ()
+  "Open claude in a new right-most split."
   (interactive)
   ;; Find the right-most window in the current frame.
   (let* ((rightmost-window
@@ -204,12 +268,30 @@
                    t)
     ;; 4. Open vterm in this new window.
     (+vterm/here nil)
-    ;; 5. Start opencode.
-    (vterm-send-string "opencode")
+    ;; 5. Start claude.
+    (vterm-send-string "claude")
     (vterm-send-return)))
 
 ;; Now, let's bind it to a Leader key.
 ;; Since it's a 'code' related terminal, 'SPC o c' (Open Code) is a good fit.
 (map! :leader
       (:prefix ("o" . "open")
-       :desc "Open Code Terminal" "c" #'+custom/open-code-terminal))
+       :desc "Claude Terminal" "c" #'+custom/claude))
+
+(use-package! copilot
+  :hook (prog-mode . copilot-mode)
+  :bind (:map copilot-completion-map
+              ("<tab>" . 'copilot-accept-completion)
+              ("TAB" . 'copilot-accept-completion)
+              ("C-TAB" . 'copilot-accept-completion-by-word)
+              ("C-<tab>" . 'copilot-accept-completion-by-word)
+              ("C-n" . 'copilot-next-completion)
+              ("C-p" . 'copilot-previous-completion))
+
+  :config
+    (add-to-list 'copilot-indentation-alist '(prog-mode 4))
+    (add-to-list 'copilot-indentation-alist '(org-mode 4))
+    (add-to-list 'copilot-indentation-alist '(text-mode 4))
+    (add-to-list 'copilot-indentation-alist '(clojure-mode 4))
+    (add-to-list 'copilot-indentation-alist '(emacs-lisp-mode 4))
+  )
