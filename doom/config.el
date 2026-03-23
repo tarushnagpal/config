@@ -7,9 +7,9 @@
 (setq-default tab-width 4)
 
 ;; font
-(setq doom-font (font-spec :size 14))
+(setq doom-font (font-spec :family "JetBrains Mono" :size 14))
 (custom-theme-set-faces!
-  'doom-dracula
+  'doom-material
   '(org-level-8 :inherit outline-3 :height 1.0)
   '(org-level-7 :inherit outline-3 :height 1.0)
   '(org-level-6 :inherit outline-3 :height 1.1)
@@ -19,7 +19,7 @@
   '(org-level-2 :inherit outline-2 :height 1.5)
   '(org-level-1 :inherit outline-1 :height 1.6)
   '(org-document-title :height 1.8 :bold t :underline nil))
-(setq doom-theme 'doom-dracula)
+(setq doom-theme 'doom-material)
 
 (setq display-line-numbers-type 'relative)
 
@@ -166,8 +166,17 @@
         "l" #'treemacs-RET-action
         ";" #'treemacs-COLLAPSE-action))
 
+(defun +vterm-no-autoscroll-a (orig-fn &rest args)
+  "Only scroll to bottom if the window is already showing it."
+  (let ((win (get-buffer-window (current-buffer))))
+    (when (and win
+               (>= (window-end win t)
+                   (- (point-max) 1)))
+      (apply orig-fn args))))
+
 (after! vterm
   (setq vterm-scroll-to-bottom-on-output nil)
+  (advice-add #'vterm--set-window-point :around #'+vterm-no-autoscroll-a)
   (add-hook 'vterm-mode-hook
     (lambda ()
       (setq-local vterm-scroll-to-bottom-on-output nil)
@@ -245,11 +254,13 @@
       :desc "vterm bottom"
       "o t" #'my/vterm-bottom)
 
-(defun +custom/claude ()
-  "Open claude in a new right-most split."
+(defun +custom/ai-terminal ()
+  "Open claude (personal) or opencode (work) in a new right-most split."
   (interactive)
-  ;; Find the right-most window in the current frame.
-  (let* ((rightmost-window
+  (let* ((cmd (if (file-directory-p (expand-file-name "~/.doom.d"))
+                  "claude"
+                "opencode"))
+         (rightmost-window
           (let ((best (selected-window))
                 (best-right -1))
             (dolist (win (window-list nil 'nomini) best)
@@ -260,23 +271,25 @@
          (target-width 100)
          (evil-vsplit-window-right t))
     (select-window rightmost-window)
-    ;; 1. Split at the right-most edge.
     (evil-window-vsplit)
-    ;; 3. Resize the new window to a fixed width.
     (window-resize (selected-window)
                    (- target-width (window-total-width))
                    t)
-    ;; 4. Open vterm in this new window.
     (+vterm/here nil)
-    ;; 5. Start claude.
-    (vterm-send-string "claude")
+    (vterm-send-string cmd)
     (vterm-send-return)))
 
-;; Now, let's bind it to a Leader key.
-;; Since it's a 'code' related terminal, 'SPC o c' (Open Code) is a good fit.
 (map! :leader
       (:prefix ("o" . "open")
-       :desc "Claude Terminal" "c" #'+custom/claude))
+       :desc "AI Terminal" "c" #'+custom/ai-terminal))
+
+(use-package! olivetti
+  :config
+  (setq olivetti-body-width 0.9)
+  (add-hook 'org-mode-hook #'olivetti-mode))
+
+(map! :leader
+      :desc "Toggle olivetti padding" "t o" #'olivetti-mode)
 
 (use-package! copilot
   :hook (prog-mode . copilot-mode)
