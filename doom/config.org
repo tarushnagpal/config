@@ -176,6 +176,9 @@ Movement keys are bound in =normal= and =visual= states only.
   (add-hook 'dired-mode-hook (lambda () (evil-local-mode 1))))
 #+end_src
 
+#+RESULTS:
+| doom--recentf-add-dired-directory-h | +dired-disable-gnu-ls-flags-maybe-h | #[nil ((evil-local-mode 1)) nil] | dired-omit-mode | diredfl-mode | +vc-gutter-enable-maybe-h |
+
 ** Window Management (SPC w / C-w)
 
 Doom binds =SPC w= to =evil-window-map= by default, which contains all the
@@ -399,41 +402,153 @@ type diagnostics and Biome lint warnings inline.
       "o t" #'my/vterm-bottom)
 #+end_src
 
-*** Open AI terminal on the right (claude or opencode)
+*** Agent Shell (AI coding agent)
 
-Detects the machine by checking which Doom config directory exists — the same
-logic used in the push/pull scripts. Personal laptop uses =~/.doom.d= (claude),
-work laptop uses =~/.config/doom= (opencode).
+Uses [[https://github.com/xenodium/agent-shell][agent-shell]] to interact with AI coding agents via ACP (Agent Client
+Protocol) natively in Emacs, instead of launching them in a vterm split.
+
+Detects the machine by checking which Doom config directory exists -- the same
+logic used in the push/pull scripts. Personal laptop uses =~/.doom.d= (Claude
+Agent), work laptop uses =~/.config/doom= (OpenCode with Cloudflare SSO).
 
 #+begin_src elisp
-(defun +custom/ai-terminal ()
-  "Open claude (personal) or opencode (work) in a new right-most split."
-  (interactive)
-  (let* ((cmd (if (file-directory-p (expand-file-name "~/.doom.d"))
-                  "claude"
-                "opencode"))
-         (rightmost-window
-          (let ((best (selected-window))
-                (best-right -1))
-            (dolist (win (window-list nil 'nomini) best)
-              (let ((right (nth 2 (window-edges win))))
-                (when (> right best-right)
-                  (setq best-right right
-                        best win))))))
-         (target-width 100)
-         (evil-vsplit-window-right t))
-    (select-window rightmost-window)
-    (evil-window-vsplit)
-    (window-resize (selected-window)
-                   (- target-width (window-total-width))
-                   t)
-    (+vterm/here nil)
-    (vterm-send-string cmd)
-    (vterm-send-return)))
+(use-package! agent-shell
+  :commands (agent-shell
+             agent-shell-new-shell
+             agent-shell-opencode-start-agent
+             agent-shell-anthropic-start-claude-code)
+  :init
+  ;; Auto-detect personal vs work machine and set the default agent.
+  ;; Personal (~/.doom.d): Claude Agent with login-based auth
+  ;; Work (~/.config/doom): OpenCode with no API key (uses `opencode auth login` / Cloudflare SSO)
+  (if (file-directory-p (expand-file-name "~/.doom.d"))
+      (progn
+        (setq agent-shell-preferred-agent-config 'claude-code)
+        (after! agent-shell-anthropic
+          (setq agent-shell-anthropic-authentication
+                (agent-shell-anthropic-make-authentication :login t))))
+    (progn
+      (setq agent-shell-preferred-agent-config 'opencode)
+      (after! agent-shell-opencode
+        (setq agent-shell-opencode-authentication
+              (agent-shell-opencode-make-authentication :none t)))))
 
+  :config
+  (require 'acp)
+
+  ;; ---------------------------------------------------------------------------
+  ;; Evil keybindings for agent-shell (ijkl-consistent)
+  ;; ---------------------------------------------------------------------------
+
+  ;; --- Normal mode -----------------------------------------------------------
+
+  ;; RET sends prompt; ; enters insert mode (consistent with global ijkl config)
+  (evil-define-key 'normal agent-shell-mode-map (kbd "RET") #'comint-send-input)
+  (evil-define-key 'normal agent-shell-mode-map (kbd ";") #'evil-insert)
+
+  ;; ijkl core movement (i=up, k=down, j=left, l=right) — inherited from global
+  ;; but explicitly set to ensure agent-shell-mode-map doesn't shadow them.
+  (evil-define-key 'normal agent-shell-mode-map (kbd "i") #'evil-previous-line)
+  (evil-define-key 'normal agent-shell-mode-map (kbd "k") #'evil-next-line)
+  (evil-define-key 'normal agent-shell-mode-map (kbd "j") #'evil-backward-char)
+  (evil-define-key 'normal agent-shell-mode-map (kbd "l") #'evil-forward-char)
+
+  ;; I/K = navigate interactive items (permissions, tool calls, diffs)
+  (evil-define-key 'normal agent-shell-mode-map (kbd "I") #'agent-shell-previous-item)
+  (evil-define-key 'normal agent-shell-mode-map (kbd "K") #'agent-shell-next-item)
+
+  ;; [ i / ] k = jump between blocks (larger structural navigation)
+  (evil-define-key 'normal agent-shell-mode-map (kbd "[ i") #'agent-shell-ui-backward-block)
+  (evil-define-key 'normal agent-shell-mode-map (kbd "] k") #'agent-shell-ui-forward-block)
+
+  ;; Input history (M-i = previous, M-k = next)
+  (evil-define-key 'normal agent-shell-mode-map (kbd "M-i") #'agent-shell-previous-input)
+  (evil-define-key 'normal agent-shell-mode-map (kbd "M-k") #'agent-shell-next-input)
+
+  ;; Session / model management
+  (evil-define-key 'normal agent-shell-mode-map (kbd "g m") #'agent-shell-set-session-model)
+  (evil-define-key 'normal agent-shell-mode-map (kbd "g s") #'agent-shell-set-session-mode)
+  (evil-define-key 'normal agent-shell-mode-map (kbd "g c") #'agent-shell-cycle-session-mode)
+
+  ;; Shell management
+  (evil-define-key 'normal agent-shell-mode-map (kbd "g r") #'agent-shell-search-history)
+  (evil-define-key 'normal agent-shell-mode-map (kbd "g o") #'agent-shell-other-buffer)
+  (evil-define-key 'normal agent-shell-mode-map (kbd "g t") #'agent-shell-open-transcript)
+  (evil-define-key 'normal agent-shell-mode-map (kbd "g l") #'agent-shell-view-traffic)
+
+  ;; Interrupt / clear
+  (evil-define-key 'normal agent-shell-mode-map (kbd "C-c") #'agent-shell-interrupt)
+  (evil-define-key 'normal agent-shell-mode-map (kbd "g x") #'agent-shell-clear-buffer)
+
+  ;; Toggle fragment expand/collapse at point
+  (evil-define-key 'normal agent-shell-mode-map (kbd "TAB") #'agent-shell-ui-toggle-fragment-at-point)
+
+  ;; --- Insert mode -----------------------------------------------------------
+
+  ;; RET inserts newline (submit from normal mode)
+  (evil-define-key 'insert agent-shell-mode-map (kbd "RET") #'newline)
+
+  ;; Input history while typing (M-i = previous, M-k = next)
+  (evil-define-key 'insert agent-shell-mode-map (kbd "M-i") #'agent-shell-previous-input)
+  (evil-define-key 'insert agent-shell-mode-map (kbd "M-k") #'agent-shell-next-input)
+
+  ;; Interrupt from insert mode
+  (evil-define-key 'insert agent-shell-mode-map (kbd "C-c") #'agent-shell-interrupt)
+
+  ;; --- Visual mode -----------------------------------------------------------
+  (evil-define-key 'visual agent-shell-mode-map (kbd "i") #'evil-previous-line)
+  (evil-define-key 'visual agent-shell-mode-map (kbd "k") #'evil-next-line)
+  (evil-define-key 'visual agent-shell-mode-map (kbd "j") #'evil-backward-char)
+  (evil-define-key 'visual agent-shell-mode-map (kbd "l") #'evil-forward-char)
+
+  ;; --- Diff buffers: start in emacs state so y/n/p/q keys work directly ------
+  (add-hook 'diff-mode-hook
+            (lambda ()
+              (when (string-match-p "\\*agent-shell-diff\\*" (buffer-name))
+                (evil-emacs-state))))
+
+  ;; --- Viewport mode (read-only response viewer) -----------------------------
+  (with-eval-after-load 'agent-shell-viewport
+    (evil-define-key 'normal agent-shell-viewport-view-mode-map
+      (kbd "i") #'evil-previous-line
+      (kbd "k") #'evil-next-line
+      (kbd "j") #'evil-backward-char
+      (kbd "l") #'evil-forward-char
+      (kbd "I") #'agent-shell-viewport-previous-page
+      (kbd "K") #'agent-shell-viewport-next-page
+      (kbd "M-i") #'agent-shell-viewport-previous-item
+      (kbd "M-k") #'agent-shell-viewport-next-item
+      (kbd "g m") #'agent-shell-viewport-set-session-model
+      (kbd "g s") #'agent-shell-viewport-set-session-mode
+      (kbd "g o") #'agent-shell-other-buffer
+      (kbd "C-c") #'agent-shell-viewport-interrupt
+      (kbd "r") #'agent-shell-viewport-reply
+      (kbd "R") #'agent-shell-viewport-refresh
+      (kbd "q") #'quit-window)))
+
+;; ---------------------------------------------------------------------------
+;; Leader keybindings for agent-shell
+;; ---------------------------------------------------------------------------
 (map! :leader
       (:prefix ("o" . "open")
-       :desc "AI Terminal" "c" #'+custom/ai-terminal))
+       :desc "Agent Shell"     "c" #'agent-shell
+       :desc "New Agent Shell" "C" #'agent-shell-new-shell)
+      (:prefix ("A" . "agent")
+       :desc "Agent Shell"         "a" #'agent-shell
+       :desc "New shell"           "n" #'agent-shell-new-shell
+       :desc "Restart shell"       "r" #'agent-shell-restart
+       :desc "Fork session"        "f" #'agent-shell-fork
+       :desc "Set model"           "m" #'agent-shell-set-session-model
+       :desc "Set mode"            "s" #'agent-shell-set-session-mode
+       :desc "Compose prompt"      "c" #'agent-shell-prompt-compose
+       :desc "Send region"         "e" #'agent-shell-send-region
+       :desc "Send file"           "F" #'agent-shell-send-current-file
+       :desc "Send DWIM"           "d" #'agent-shell-send-dwim
+       :desc "Toggle shell"        "t" #'agent-shell-toggle
+       :desc "View transcript"     "T" #'agent-shell-open-transcript
+       :desc "View traffic"        "l" #'agent-shell-view-traffic
+       :desc "Interrupt"           "x" #'agent-shell-interrupt
+       :desc "Rename buffer"       "R" #'agent-shell-rename-buffer))
 #+end_src
 
 * Olivetti (window padding)

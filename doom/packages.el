@@ -15,6 +15,10 @@
 (package! ultra-scroll)
 (package! olivetti)
 
+(package! shell-maker)
+(package! acp)
+(package! agent-shell)
+
 (package! copilot
   :recipe (:host github :repo "copilot-emacs/copilot.el" :files ("*.el")))
 ;; To install a package directly from a remote git repo, you must specify a
