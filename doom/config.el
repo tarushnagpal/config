@@ -50,6 +50,13 @@
   ;; Corrects (and improves) org-mode's native fontification.
   (doom-themes-org-config))
 
+;; Soft-wrap text in scratch, org, and markdown buffers
+(add-hook! '(doom-scratch-buffer-created-hook
+             org-mode-hook
+             markdown-mode-hook
+             gfm-mode-hook)
+  #'visual-line-mode)
+
 (use-package! ultra-scroll
  :init
  (setq scroll-conservatively 3
@@ -69,10 +76,11 @@
   (pixel-scroll-precision-interpolate (/ (window-body-height nil t) 2)))
 
 (after! evil
-  (define-key evil-normal-state-map (kbd "C-d") #'+custom/scroll-half-page-down)
-  (define-key evil-normal-state-map (kbd "C-u") #'+custom/scroll-half-page-up)
-  (define-key evil-visual-state-map (kbd "C-d") #'+custom/scroll-half-page-down)
-  (define-key evil-visual-state-map (kbd "C-u") #'+custom/scroll-half-page-up))
+  ;; Bind on `global' keymap so these override any mode-local C-d/C-u bindings
+  ;; (comint, vterm, etc.) without needing per-mode overrides.
+  (evil-define-key '(normal visual) 'global
+    (kbd "C-d") #'+custom/scroll-half-page-down
+    (kbd "C-u") #'+custom/scroll-half-page-up))
 
 (setq bash-completion-bash-executable "/opt/homebrew/bin/bash")
 
@@ -166,21 +174,42 @@
         "l" #'treemacs-RET-action
         ";" #'treemacs-COLLAPSE-action))
 
-(defun +vterm-no-autoscroll-a (orig-fn &rest args)
-  "Only scroll to bottom if the window is already showing it."
-  (let ((win (get-buffer-window (current-buffer))))
-    (when (and win
-               (>= (window-end win t)
-                   (- (point-max) 1)))
-      (apply orig-fn args))))
+(defvar-local +vterm--user-scrolled-up nil
+  "Non-nil when the user has scrolled away from the bottom in a vterm buffer.")
+
+(defun +vterm--check-scroll-position (&rest _)
+  "Update `+vterm--user-scrolled-up' based on window position."
+  (when (derived-mode-p 'vterm-mode)
+    (let ((win (selected-window)))
+      (setq +vterm--user-scrolled-up
+            (< (window-end win t)
+               (- (point-max) (* 2 (window-body-height win))))))))
+
+(defun +vterm-suppress-recenter-a (orig-fn &rest args)
+  "Around advice for `recenter': suppress in vterm when user scrolled up."
+  (unless (and (derived-mode-p 'vterm-mode)
+               +vterm--user-scrolled-up)
+    (apply orig-fn args)))
+
+(defun +vterm-suppress-set-window-point-a (orig-fn window point)
+  "Around advice for `set-window-point': suppress in vterm when user scrolled up."
+  (unless (and (with-current-buffer (window-buffer window)
+                 (derived-mode-p 'vterm-mode))
+               (buffer-local-value '+vterm--user-scrolled-up (window-buffer window)))
+    (funcall orig-fn window point)))
 
 (after! vterm
-  (setq vterm-scroll-to-bottom-on-output nil)
-  (advice-add #'vterm--set-window-point :around #'+vterm-no-autoscroll-a)
+  ;; Track whether user has scrolled up
   (add-hook 'vterm-mode-hook
     (lambda ()
-      (setq-local vterm-scroll-to-bottom-on-output nil)
-      (setq-local scroll-conservatively 101)))
+      (add-hook 'post-command-hook #'+vterm--check-scroll-position nil t)
+      (add-hook 'window-scroll-functions
+                (lambda (_win _pos) (+vterm--check-scroll-position)) nil t)))
+
+  ;; Advise the two primitives that vterm's C module calls to force scroll
+  (advice-add #'recenter :around #'+vterm-suppress-recenter-a)
+  (advice-add #'set-window-point :around #'+vterm-suppress-set-window-point-a)
+
   (evil-define-key 'insert vterm-mode-map
     (kbd "C-r") #'vterm--self-insert)
   (map! :map vterm-mode-map
@@ -206,7 +235,13 @@
         :v "j" #'evil-backward-char
         :v "l" #'evil-forward-char))
 
-(add-to-list 'major-mode-remap-alist '(json-ts-mode . json-mode))
+;; Force json-mode even after tree-sitter remaps it to json-ts-mode.
+;; Use `after!` to ensure our entry is added *after* Doom's tree-sitter
+;; module populates the alist, so ours takes precedence (alist = first match wins).
+(after! treesit
+  (setq major-mode-remap-alist
+        (assq-delete-all 'json-mode major-mode-remap-alist))
+  (add-to-list 'major-mode-remap-alist '(json-ts-mode . json-mode)))
 
 (after! eglot
   (set-eglot-client! '(json-mode json-ts-mode)
@@ -278,6 +313,16 @@
   :config
   (require 'acp)
 
+  ;; Prompt to pick an existing session or start new on shell open.
+  (setq agent-shell-session-strategy 'prompt)
+
+  ;; Use session/load instead of session/resume so full history is
+  ;; streamed back into the buffer when resuming a session.
+  (setq agent-shell-prefer-session-resume nil)
+
+  ;; Don't auto-grab the current line as context when opening a shell.
+  (setq agent-shell-context-sources '(files region error))
+
   ;; ---------------------------------------------------------------------------
   ;; Evil keybindings for agent-shell (ijkl-consistent)
   ;; ---------------------------------------------------------------------------
@@ -303,6 +348,10 @@
   (evil-define-key 'normal agent-shell-mode-map (kbd "[ i") #'agent-shell-ui-backward-block)
   (evil-define-key 'normal agent-shell-mode-map (kbd "] k") #'agent-shell-ui-forward-block)
 
+  ;; g[ / g] = jump between prompts in the buffer
+  (evil-define-key 'normal agent-shell-mode-map (kbd "g [") #'agent-shell-previous-item)
+  (evil-define-key 'normal agent-shell-mode-map (kbd "g ]") #'agent-shell-next-item)
+
   ;; Input history (M-i = previous, M-k = next)
   (evil-define-key 'normal agent-shell-mode-map (kbd "M-i") #'agent-shell-previous-input)
   (evil-define-key 'normal agent-shell-mode-map (kbd "M-k") #'agent-shell-next-input)
@@ -311,6 +360,12 @@
   (evil-define-key 'normal agent-shell-mode-map (kbd "g m") #'agent-shell-set-session-model)
   (evil-define-key 'normal agent-shell-mode-map (kbd "g s") #'agent-shell-set-session-mode)
   (evil-define-key 'normal agent-shell-mode-map (kbd "g c") #'agent-shell-cycle-session-mode)
+  (evil-define-key 'normal agent-shell-mode-map (kbd "M-m") #'agent-shell-cycle-session-mode)
+
+  ;; Session switching
+  (evil-define-key 'normal agent-shell-mode-map (kbd "g p") #'agent-shell-resume-session)
+  (evil-define-key 'normal agent-shell-mode-map (kbd "g f") #'agent-shell-fork)
+  (evil-define-key 'normal agent-shell-mode-map (kbd "g y") #'agent-shell-copy-session-id)
 
   ;; Shell management
   (evil-define-key 'normal agent-shell-mode-map (kbd "g r") #'agent-shell-search-history)
@@ -327,12 +382,16 @@
 
   ;; --- Insert mode -----------------------------------------------------------
 
-  ;; RET inserts newline (submit from normal mode)
-  (evil-define-key 'insert agent-shell-mode-map (kbd "RET") #'newline)
+  ;; RET sends prompt; S-RET inserts newline for multi-line input
+  (evil-define-key 'insert agent-shell-mode-map (kbd "RET") #'comint-send-input)
+  (evil-define-key 'insert agent-shell-mode-map (kbd "S-RET") #'newline)
 
   ;; Input history while typing (M-i = previous, M-k = next)
   (evil-define-key 'insert agent-shell-mode-map (kbd "M-i") #'agent-shell-previous-input)
   (evil-define-key 'insert agent-shell-mode-map (kbd "M-k") #'agent-shell-next-input)
+
+  ;; Cycle session mode (M-m = mode)
+  (evil-define-key 'insert agent-shell-mode-map (kbd "M-m") #'agent-shell-cycle-session-mode)
 
   ;; Interrupt from insert mode
   (evil-define-key 'insert agent-shell-mode-map (kbd "C-c") #'agent-shell-interrupt)
@@ -366,7 +425,18 @@
       (kbd "C-c") #'agent-shell-viewport-interrupt
       (kbd "r") #'agent-shell-viewport-reply
       (kbd "R") #'agent-shell-viewport-refresh
-      (kbd "q") #'quit-window)))
+      (kbd "q") #'quit-window))
+
+  ;; --- Notification when agent-shell turn completes --------------------------
+  (add-hook 'agent-shell-mode-hook
+    (lambda ()
+      (agent-shell-subscribe-to
+       :shell-buffer (current-buffer)
+       :event 'turn-complete
+       :on-event (lambda (_event)
+                   (start-process "ping" nil "afplay" "/System/Library/Sounds/Ping.aiff")
+                   (start-process "notify" nil "osascript" "-e"
+                     "display notification \"Turn complete\" with title \"Agent Shell\""))))))
 
 ;; ---------------------------------------------------------------------------
 ;; Leader keybindings for agent-shell
@@ -390,7 +460,9 @@
        :desc "View transcript"     "T" #'agent-shell-open-transcript
        :desc "View traffic"        "l" #'agent-shell-view-traffic
        :desc "Interrupt"           "x" #'agent-shell-interrupt
-       :desc "Rename buffer"       "R" #'agent-shell-rename-buffer))
+       :desc "Rename buffer"       "R" #'agent-shell-rename-buffer
+       :desc "Resume session"      "p" #'agent-shell-resume-session
+       :desc "Copy session ID"     "y" #'agent-shell-copy-session-id))
 
 (use-package! olivetti
   :config
