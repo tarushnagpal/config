@@ -1,6 +1,11 @@
-;; Projectile: use alien indexing (no caching, always fresh via fd/git)
+;; Projectile: use alien indexing with no caching, always fresh via fd/git
 (setq projectile-indexing-method 'alien)
+(setq projectile-enable-caching nil)
 (setq projectile-git-use-untracked-files t)
+
+;; Auto-revert: instant refresh via OS file notifications
+(setq auto-revert-use-notify t)
+(setq auto-revert-interval 1)
 
 ;; Tabs length
 (setq-default indent-tabs-mode t)
@@ -31,6 +36,10 @@
 
 (setq confirm-kill-emacs nil)
 ;; (setq initial-buffer-choice )
+
+;; Auto-save file-visiting buffers when idle or switching away
+(setq auto-save-visited-interval 1)
+(auto-save-visited-mode +1)
 
 (use-package! doom-themes
   :ensure t
@@ -76,11 +85,15 @@
   (pixel-scroll-precision-interpolate (/ (window-body-height nil t) 2)))
 
 (after! evil
-  ;; Bind on `global' keymap so these override any mode-local C-d/C-u bindings
-  ;; (comint, vterm, etc.) without needing per-mode overrides.
-  (evil-define-key '(normal visual) 'global
-    (kbd "C-d") #'+custom/scroll-half-page-down
-    (kbd "C-u") #'+custom/scroll-half-page-up))
+  ;; Must override evil-motion-state-map — Doom sets evil-want-C-u/d-scroll t
+  ;; which binds evil-scroll-up/down there, and motion-state has higher
+  ;; priority than normal-state in Evil's keymap chain.
+  (define-key evil-motion-state-map (kbd "C-d") #'+custom/scroll-half-page-down)
+  (define-key evil-motion-state-map (kbd "C-u") #'+custom/scroll-half-page-up)
+  (define-key evil-normal-state-map (kbd "C-d") #'+custom/scroll-half-page-down)
+  (define-key evil-normal-state-map (kbd "C-u") #'+custom/scroll-half-page-up)
+  (define-key evil-visual-state-map (kbd "C-d") #'+custom/scroll-half-page-down)
+  (define-key evil-visual-state-map (kbd "C-u") #'+custom/scroll-half-page-up))
 
 (setq bash-completion-bash-executable "/opt/homebrew/bin/bash")
 
@@ -101,7 +114,7 @@
 
     ;; Displaced keys.
     (define-key evil-normal-state-map (kbd ";") #'evil-insert)
-    (define-key evil-normal-state-map (kbd ":") #'evil-insert-line)
+    (define-key evil-normal-state-map (kbd ":") #'evil-ex)
     (define-key evil-normal-state-map (kbd "K") #'evil-join)
     (define-key evil-visual-state-map (kbd "K") #'evil-join)
     (define-key evil-normal-state-map (kbd "U") #'evil-redo)
@@ -149,6 +162,11 @@
       "J" #'+evil/window-move-left
       "L" #'+evil/window-move-right
       "t" #'+custom/window-top-right)
+
+(map! (:when (modulep! :editor multiple-cursors)
+       :prefix "gz"
+       :nv "k" #'evil-mc-make-cursor-move-next-line
+       :nv "i" #'evil-mc-make-cursor-move-prev-line))
 
 (after! magit
   (setq magit-branch-read-upstream-first 'fallback)
@@ -212,6 +230,30 @@
 
   (evil-define-key 'insert vterm-mode-map
     (kbd "C-r") #'vterm--self-insert)
+
+  ;; Sync terminal cursor to Emacs cursor when entering insert mode.
+  ;; Evil normal-mode moves the Emacs point but the shell's cursor stays put,
+  ;; so typing in insert mode would appear at the wrong position.  We compute
+  ;; the column offset and send the right number of C-b / C-f escapes to the
+  ;; terminal so both cursors agree.
+  (defun +vterm-sync-cursor-before-insert (&rest _)
+    "Move the terminal cursor to match Emacs point before evil insert state."
+    (when (and (derived-mode-p 'vterm-mode)
+               (not (eq evil-state 'insert)))
+      (let* ((pnt     (point))
+             (eol     (save-excursion (end-of-line) (point)))
+             (bol     (save-excursion (beginning-of-line) (point)))
+             ;; Shell cursor is at eol (where the prompt ends / last char)
+             ;; We need to go back (eol - pnt) columns
+             (offset  (- eol pnt)))
+        (when (> offset 0)
+          ;; Send C-b (backward-char) to the terminal `offset' times
+          (dotimes (_ offset)
+            (vterm-send-key "b" nil nil t))))))  ;; C-b
+
+  (advice-add #'evil-insert :before #'+vterm-sync-cursor-before-insert)
+  (advice-add #'evil-append :before #'+vterm-sync-cursor-before-insert)
+
   (map! :map vterm-mode-map
         :nv "i" #'evil-previous-line
         :nv "k" #'evil-next-line
@@ -243,9 +285,21 @@
         (assq-delete-all 'json-mode major-mode-remap-alist))
   (add-to-list 'major-mode-remap-alist '(json-ts-mode . json-mode)))
 
-(after! eglot
-  (set-eglot-client! '(json-mode json-ts-mode)
-    '("vscode-json-language-server" "--stdio")))
+;; json-mode derives from js-mode, so eglot's (js-mode ...) entry matches it
+;; via derived-mode-p before our json-mode entry is checked.  We must:
+;; 1. Push our entry to the FRONT of eglot-server-programs (first match wins)
+;; 2. Do it AFTER all Doom modules finish so :lang javascript can't re-clobber it
+(add-hook! 'doom-after-modules-config-hook
+  (defun +json-eglot-setup-h ()
+    (after! eglot
+      (setq eglot-server-programs
+            (cons '((json-mode json-ts-mode) . ("vscode-json-language-server" "--stdio"))
+                  (cl-remove-if
+                   (lambda (entry)
+                     (let ((modes (if (listp (car entry)) (car entry) (list (car entry)))))
+                       (and (cl-intersection modes '(json-mode json-ts-mode))
+                            (not (cl-intersection modes '(js-mode typescript-ts-mode))))))
+                   eglot-server-programs))))))
 
 (defun +detect-project-formatter-h ()
   "Set buffer-local formatter to biome when biome.json is found in the project."
@@ -288,6 +342,14 @@
 (map! :leader
       :desc "vterm bottom"
       "o t" #'my/vterm-bottom)
+
+(defun my/browse-url-from-selection ()
+  "Open the visually selected text as a URL in the default browser."
+  (interactive)
+  (let ((url (buffer-substring-no-properties (region-beginning) (region-end))))
+    (browse-url (string-trim url))))
+
+(evil-define-key 'visual 'global (kbd "<leader> o u") #'my/browse-url-from-selection)
 
 (use-package! agent-shell
   :commands (agent-shell
@@ -332,6 +394,10 @@
   ;; RET sends prompt; ; enters insert mode (consistent with global ijkl config)
   (evil-define-key 'normal agent-shell-mode-map (kbd "RET") #'comint-send-input)
   (evil-define-key 'normal agent-shell-mode-map (kbd ";") #'evil-insert)
+
+  ;; Smooth half-page scroll — must be explicit here to override comint/motion defaults
+  (evil-define-key 'normal agent-shell-mode-map (kbd "C-d") #'+custom/scroll-half-page-down)
+  (evil-define-key 'normal agent-shell-mode-map (kbd "C-u") #'+custom/scroll-half-page-up)
 
   ;; ijkl core movement (i=up, k=down, j=left, l=right) — inherited from global
   ;; but explicitly set to ensure agent-shell-mode-map doesn't shadow them.
@@ -427,16 +493,33 @@
       (kbd "R") #'agent-shell-viewport-refresh
       (kbd "q") #'quit-window))
 
-  ;; --- Notification when agent-shell turn completes --------------------------
+  ;; --- Notifications ----------------------------------------------------------
+  (defun +agent-shell--notify (title message)
+    "Play a sound and show a macOS notification."
+    (start-process "ping" nil "afplay" "/System/Library/Sounds/Ping.aiff")
+    (start-process "notify" nil "osascript" "-e"
+      (format "display notification %S with title %S" message title)))
+
   (add-hook 'agent-shell-mode-hook
     (lambda ()
       (agent-shell-subscribe-to
        :shell-buffer (current-buffer)
        :event 'turn-complete
        :on-event (lambda (_event)
-                   (start-process "ping" nil "afplay" "/System/Library/Sounds/Ping.aiff")
-                   (start-process "notify" nil "osascript" "-e"
-                     "display notification \"Turn complete\" with title \"Agent Shell\""))))))
+                   (+agent-shell--notify "Agent Shell" "Turn complete")))
+      (agent-shell-subscribe-to
+       :shell-buffer (current-buffer)
+       :event 'permission-request
+       :on-event (lambda (_event)
+                   (+agent-shell--notify "Agent Shell" "Permission requested"))))))
+
+(defun +agent-shell-here ()
+  "Open a new agent-shell in the directory of the current file."
+  (interactive)
+  (require 'agent-shell)
+  (let* ((dir (expand-file-name default-directory))
+         (agent-shell-cwd-function (lambda () dir)))
+    (agent-shell--new-shell :location dir)))
 
 ;; ---------------------------------------------------------------------------
 ;; Leader keybindings for agent-shell
@@ -447,6 +530,7 @@
        :desc "New Agent Shell" "C" #'agent-shell-new-shell)
       (:prefix ("A" . "agent")
        :desc "Agent Shell"         "a" #'agent-shell
+       :desc "Shell here"           "A" #'+agent-shell-here
        :desc "New shell"           "n" #'agent-shell-new-shell
        :desc "Restart shell"       "r" #'agent-shell-restart
        :desc "Fork session"        "f" #'agent-shell-fork
