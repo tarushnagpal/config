@@ -66,6 +66,26 @@
              gfm-mode-hook)
   #'visual-line-mode)
 
+;; Disable Bidirectional Text Scanning
+(setq-default bidi-display-reordering 'left-to-right
+              bidi-paragraph-direction 'left-to-right)
+(setq bidi-inhibit-bpa t)
+
+;; Skip Fontification During Input
+(setq redisplay-skip-fontification-on-input t)
+
+;; Increase Process Output Buffer for LSP
+(setq read-process-output-max (* 4 1024 1024)) ; 4MB
+
+;; Don’t Render Cursors in Non-Focused Windows
+(setq-default cursor-in-non-selected-windows nil)
+(setq highlight-nonselected-windows nil)
+
+;; Recenter After save-place Restores Position
+(advice-add 'save-place-find-file-hook :after
+            (lambda (&rest _)
+              (when buffer-file-name (ignore-errors (recenter)))))
+
 (use-package! ultra-scroll
  :init
  (setq scroll-conservatively 3
@@ -77,12 +97,12 @@
 (defun +custom/scroll-half-page-down ()
   "Smooth animated half-page scroll down."
   (interactive)
-  (pixel-scroll-precision-interpolate (- (/ (window-body-height nil t) 2))))
+  (pixel-scroll-precision-interpolate (- (/ (window-body-height nil t) 2)) nil 1.0))
 
 (defun +custom/scroll-half-page-up ()
   "Smooth animated half-page scroll up."
   (interactive)
-  (pixel-scroll-precision-interpolate (/ (window-body-height nil t) 2)))
+  (pixel-scroll-precision-interpolate (/ (window-body-height nil t) 2) nil 1.0))
 
 (after! evil
   ;; Must override evil-motion-state-map — Doom sets evil-want-C-u/d-scroll t
@@ -186,47 +206,21 @@
 
 (after! treemacs
   (map! :map evil-treemacs-state-map
+        "f" #'avy-goto-line
         "i" #'treemacs-previous-line
         "k" #'treemacs-next-line
         "j" #'treemacs-root-up
         "l" #'treemacs-RET-action
         ";" #'treemacs-COLLAPSE-action))
 
-(defvar-local +vterm--user-scrolled-up nil
-  "Non-nil when the user has scrolled away from the bottom in a vterm buffer.")
-
-(defun +vterm--check-scroll-position (&rest _)
-  "Update `+vterm--user-scrolled-up' based on window position."
-  (when (derived-mode-p 'vterm-mode)
-    (let ((win (selected-window)))
-      (setq +vterm--user-scrolled-up
-            (< (window-end win t)
-               (- (point-max) (* 2 (window-body-height win))))))))
-
-(defun +vterm-suppress-recenter-a (orig-fn &rest args)
-  "Around advice for `recenter': suppress in vterm when user scrolled up."
-  (unless (and (derived-mode-p 'vterm-mode)
-               +vterm--user-scrolled-up)
-    (apply orig-fn args)))
-
-(defun +vterm-suppress-set-window-point-a (orig-fn window point)
-  "Around advice for `set-window-point': suppress in vterm when user scrolled up."
-  (unless (and (with-current-buffer (window-buffer window)
-                 (derived-mode-p 'vterm-mode))
-               (buffer-local-value '+vterm--user-scrolled-up (window-buffer window)))
-    (funcall orig-fn window point)))
-
 (after! vterm
-  ;; Track whether user has scrolled up
-  (add-hook 'vterm-mode-hook
-    (lambda ()
-      (add-hook 'post-command-hook #'+vterm--check-scroll-position nil t)
-      (add-hook 'window-scroll-functions
-                (lambda (_win _pos) (+vterm--check-scroll-position)) nil t)))
-
-  ;; Advise the two primitives that vterm's C module calls to force scroll
-  (advice-add #'recenter :around #'+vterm-suppress-recenter-a)
-  (advice-add #'set-window-point :around #'+vterm-suppress-set-window-point-a)
+  (add-hook 'window-scroll-functions
+    (defun +vterm-toggle-copy-mode (window &rest _)
+      (when (eq major-mode 'vterm-mode)
+        (with-selected-window window
+          (if (>= (window-end window t) (point-max))
+              (when vterm-copy-mode (vterm-copy-mode-done nil))
+            (unless vterm-copy-mode (vterm-copy-mode 1)))))))
 
   (evil-define-key 'insert vterm-mode-map
     (kbd "C-r") #'vterm--self-insert)
@@ -343,6 +337,18 @@
       :desc "vterm bottom"
       "o t" #'my/vterm-bottom)
 
+(defun my/find-file-from-clipboard ()
+  "Open the file path currently in the clipboard/kill-ring."
+  (interactive)
+  (let ((path (string-trim (current-kill 0 t))))
+    (if (file-exists-p (expand-file-name path))
+        (find-file (expand-file-name path))
+      (user-error "Not a valid file path: %s" path))))
+
+(map! :leader
+      :desc "Find file from clipboard"
+      "f y" #'my/find-file-from-clipboard)
+
 (defun my/browse-url-from-selection ()
   "Open the visually selected text as a URL in the default browser."
   (interactive)
@@ -365,7 +371,12 @@
         (setq agent-shell-preferred-agent-config 'claude-code)
         (after! agent-shell-anthropic
           (setq agent-shell-anthropic-authentication
-                (agent-shell-anthropic-make-authentication :login t))))
+                (agent-shell-anthropic-make-authentication
+                 :api-key (lambda ()
+                            (string-trim
+                             (with-temp-buffer
+                               (insert-file-contents "~/.claude-code-key")
+                               (buffer-string))))))))
     (progn
       (setq agent-shell-preferred-agent-config 'opencode)
       (after! agent-shell-opencode
@@ -556,20 +567,20 @@
 (map! :leader
       :desc "Toggle olivetti padding" "t o" #'olivetti-mode)
 
-(use-package! copilot
-  :hook (prog-mode . copilot-mode)
-  :bind (:map copilot-completion-map
-              ("<tab>" . 'copilot-accept-completion)
-              ("TAB" . 'copilot-accept-completion)
-              ("C-TAB" . 'copilot-accept-completion-by-word)
-              ("C-<tab>" . 'copilot-accept-completion-by-word)
-              ("C-n" . 'copilot-next-completion)
-              ("C-p" . 'copilot-previous-completion))
+;; (use-package! copilot
+;;   :hook (prog-mode . copilot-mode)
+;;   :bind (:map copilot-completion-map
+;;               ("<tab>" . 'copilot-accept-completion)
+;;               ("TAB" . 'copilot-accept-completion)
+;;               ("C-TAB" . 'copilot-accept-completion-by-word)
+;;               ("C-<tab>" . 'copilot-accept-completion-by-word)
+;;               ("C-n" . 'copilot-next-completion)
+;;               ("C-p" . 'copilot-previous-completion))
 
-  :config
-    (add-to-list 'copilot-indentation-alist '(prog-mode 4))
-    (add-to-list 'copilot-indentation-alist '(org-mode 4))
-    (add-to-list 'copilot-indentation-alist '(text-mode 4))
-    (add-to-list 'copilot-indentation-alist '(clojure-mode 4))
-    (add-to-list 'copilot-indentation-alist '(emacs-lisp-mode 4))
-  )
+;;   :config
+;;     (add-to-list 'copilot-indentation-alist '(prog-mode 4))
+;;     (add-to-list 'copilot-indentation-alist '(org-mode 4))
+;;     (add-to-list 'copilot-indentation-alist '(text-mode 4))
+;;     (add-to-list 'copilot-indentation-alist '(clojure-mode 4))
+;;     (add-to-list 'copilot-indentation-alist '(emacs-lisp-mode 4))
+;;   )
