@@ -30,8 +30,10 @@
   '(org-document-title :height 1.8 :bold t :underline nil))
 (setq doom-theme 'doom-material)
 
-(after! solaire-mode
-  (setq solaire-mode-real-buffer-fn (lambda () t)))
+(add-hook 'doom-load-theme-hook
+  (defun my/darken-solaire-bg ()
+    (when (facep 'solaire-default-face)
+      (set-face-attribute 'solaire-default-face nil :background "#2A2B32"))))
 
 (setq display-line-numbers-type 'relative)
 
