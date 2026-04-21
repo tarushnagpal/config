@@ -30,6 +30,9 @@
   '(org-document-title :height 1.8 :bold t :underline nil))
 (setq doom-theme 'doom-material)
 
+(after! solaire-mode
+  (setq solaire-mode-real-buffer-fn (lambda () t)))
+
 (setq display-line-numbers-type 'relative)
 
 (map! :leader
@@ -483,19 +486,34 @@ type diagnostics and Biome lint warnings inline.
 
 * Custom functons
 
-*** Open vterm in a window instead of the popup that doom emacs does
+*** Open vterm in a bottom split at the project root
 
 #+begin_src elisp
 (defun my/vterm-bottom ()
   (interactive)
-  (let ((window (split-window (frame-root-window) -15 'below))
-        (dir (or (doom-project-root) default-directory)))
+  (let* ((default-directory (or (doom-project-root) default-directory))
+         (window (split-window (frame-root-window) -15 'below)))
     (select-window window)
-    (+vterm/here dir)))
+    (+vterm/here nil)))
 
 (map! :leader
-      :desc "vterm bottom"
+      :desc "vterm at project root"
       "o t" #'my/vterm-bottom)
+#+end_src
+
+*** Open vterm in a bottom split at the current file's directory
+
+#+begin_src elisp
+(defun my/vterm-here ()
+  (interactive)
+  (let* ((default-directory (file-name-directory (or buffer-file-name default-directory)))
+         (window (split-window (frame-root-window) -15 'below)))
+    (select-window window)
+    (+vterm/here nil)))
+
+(map! :leader
+      :desc "vterm at file dir"
+      "o T" #'my/vterm-here)
 #+end_src
 
 *** Open file from clipboard
