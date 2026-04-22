@@ -323,21 +323,12 @@ remapping doesn't reach it. We bind directly into =evil-treemacs-state-map=.
 
 *** Vterm
 
-Prevent vterm from auto-scrolling to the bottom when new output arrives and the
-user has scrolled up to read history. When the user scrolls up, we enter
-=vterm-copy-mode= which freezes the display (the underlying process keeps
-running). Scrolling back to the bottom exits copy mode automatically.
+Press =C= in normal state to toggle =vterm-copy-mode= (freezes the display so
+you can scroll and yank history; press =C= again or =;= to return to the live
+terminal).
 
 #+begin_src elisp
 (after! vterm
-  (add-hook 'window-scroll-functions
-    (defun +vterm-toggle-copy-mode (window &rest _)
-      (when (eq major-mode 'vterm-mode)
-        (with-selected-window window
-          (if (>= (window-end window t) (point-max))
-              (when vterm-copy-mode (vterm-copy-mode-done nil))
-            (unless vterm-copy-mode (vterm-copy-mode 1)))))))
-
   (evil-define-key 'insert vterm-mode-map
     (kbd "C-r") #'vterm--self-insert)
 
@@ -369,7 +360,8 @@ running). Scrolling back to the bottom exits copy mode automatically.
         :nv "k" #'evil-next-line
         :nv "j" #'evil-backward-char
         :nv "l" #'evil-forward-char
-        :nv ";" #'evil-insert))
+        :nv ";" #'evil-insert
+        :n  "C" #'vterm-copy-mode))
 #+end_src
 *** Org Mode (evil-org)
 

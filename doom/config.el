@@ -214,14 +214,6 @@
         ";" #'treemacs-COLLAPSE-action))
 
 (after! vterm
-  (add-hook 'window-scroll-functions
-    (defun +vterm-toggle-copy-mode (window &rest _)
-      (when (eq major-mode 'vterm-mode)
-        (with-selected-window window
-          (if (>= (window-end window t) (point-max))
-              (when vterm-copy-mode (vterm-copy-mode-done nil))
-            (unless vterm-copy-mode (vterm-copy-mode 1)))))))
-
   (evil-define-key 'insert vterm-mode-map
     (kbd "C-r") #'vterm--self-insert)
 
@@ -253,7 +245,8 @@
         :nv "k" #'evil-next-line
         :nv "j" #'evil-backward-char
         :nv "l" #'evil-forward-char
-        :nv ";" #'evil-insert))
+        :nv ";" #'evil-insert
+        :n  "C" #'vterm-copy-mode))
 
 (after! evil-org
   ;; evil-org binds i-prefixed text objects (ie, ip, iR…) in normal state,
