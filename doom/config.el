@@ -14,7 +14,7 @@
 ;; font
 (setq doom-font (font-spec :family "JetBrains Mono" :size 14))
 (custom-theme-set-faces!
-  'doom-material
+  'doom-moonlight
   '(org-level-8 :inherit outline-3 :height 1.0)
   '(org-level-7 :inherit outline-3 :height 1.0)
   '(org-level-6 :inherit outline-3 :height 1.1)
@@ -24,7 +24,16 @@
   '(org-level-2 :inherit outline-2 :height 1.5)
   '(org-level-1 :inherit outline-1 :height 1.6)
   '(org-document-title :height 1.8 :bold t :underline nil))
-(setq doom-theme 'doom-material)
+(setq doom-theme 'doom-moonlight)
+
+(add-hook 'doom-load-theme-hook
+  (defun my/darken-solaire-bg ()
+    (when (facep 'solaire-default-face)
+      (set-face-attribute 'solaire-default-face nil :background "#1E2032"))))
+
+;; Tone down alternating table row stripes
+(custom-set-faces!
+ '(stripe-highlight ((t (:background "#262840")))))
 
 (setq display-line-numbers-type 'relative)
 
@@ -117,7 +126,8 @@
 
 (setq bash-completion-bash-executable "/opt/homebrew/bin/bash")
 
-(map! :nv "gD" #'+lookup/references)
+(after! eglot
+  (evil-define-key 'normal eglot-mode-map (kbd "gD") #'+lookup/references))
 
 (after! evil
   (defun +custom/apply-ijkl-core-bindings ()
@@ -214,6 +224,14 @@
         ";" #'treemacs-COLLAPSE-action))
 
 (after! vterm
+  (add-hook 'window-scroll-functions
+    (defun +vterm-toggle-copy-mode (window &rest _)
+      (when (eq major-mode 'vterm-mode)
+        (with-selected-window window
+          (if (>= (window-end window t) (point-max))
+              (when vterm-copy-mode (vterm-copy-mode-done nil))
+            (unless vterm-copy-mode (vterm-copy-mode 1)))))))
+
   (evil-define-key 'insert vterm-mode-map
     (kbd "C-r") #'vterm--self-insert)
 
@@ -245,8 +263,7 @@
         :nv "k" #'evil-next-line
         :nv "j" #'evil-backward-char
         :nv "l" #'evil-forward-char
-        :nv ";" #'evil-insert
-        :n  "C" #'vterm-copy-mode))
+        :nv ";" #'evil-insert))
 
 (after! evil-org
   ;; evil-org binds i-prefixed text objects (ie, ip, iR…) in normal state,
@@ -321,14 +338,23 @@
 
 (defun my/vterm-bottom ()
   (interactive)
-  (let ((window (split-window (frame-root-window) -15 'below))
-        (dir (or (doom-project-root) default-directory)))
+  (let* ((default-directory (or (doom-project-root) default-directory))
+         (window (split-window (frame-root-window) -15 'below)))
     (select-window window)
-    (+vterm/here dir)))
+    (+vterm/here nil)))
 
 (map! :leader
-      :desc "vterm bottom"
+      :desc "vterm at project root"
       "o t" #'my/vterm-bottom)
+
+(defun my/vterm-here ()
+  (interactive)
+  (let ((default-directory (file-name-directory (or buffer-file-name default-directory))))
+    (vterm (generate-new-buffer-name "vterm"))))
+
+(map! :leader
+      :desc "vterm at file dir"
+      "o T" #'my/vterm-here)
 
 (defun my/find-file-from-clipboard ()
   "Open the file path currently in the clipboard/kill-ring."
@@ -369,7 +395,8 @@
                             (string-trim
                              (with-temp-buffer
                                (insert-file-contents "~/.claude-code-key")
-                               (buffer-string))))))))
+                               (buffer-string))))))
+          (setq agent-shell-anthropic-default-model-id "claude-opus-4-6")))
     (progn
       (setq agent-shell-preferred-agent-config 'opencode)
       (after! agent-shell-opencode

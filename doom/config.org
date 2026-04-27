@@ -18,7 +18,7 @@
 ;; font
 (setq doom-font (font-spec :family "JetBrains Mono" :size 14))
 (custom-theme-set-faces!
-  'doom-material
+  'doom-moonlight
   '(org-level-8 :inherit outline-3 :height 1.0)
   '(org-level-7 :inherit outline-3 :height 1.0)
   '(org-level-6 :inherit outline-3 :height 1.1)
@@ -28,12 +28,16 @@
   '(org-level-2 :inherit outline-2 :height 1.5)
   '(org-level-1 :inherit outline-1 :height 1.6)
   '(org-document-title :height 1.8 :bold t :underline nil))
-(setq doom-theme 'doom-material)
+(setq doom-theme 'doom-moonlight)
 
 (add-hook 'doom-load-theme-hook
   (defun my/darken-solaire-bg ()
     (when (facep 'solaire-default-face)
-      (set-face-attribute 'solaire-default-face nil :background "#2A2B32"))))
+      (set-face-attribute 'solaire-default-face nil :background "#1E2032"))))
+
+;; Tone down alternating table row stripes
+(custom-set-faces!
+ '(stripe-highlight ((t (:background "#262840")))))
 
 (setq display-line-numbers-type 'relative)
 
@@ -149,7 +153,8 @@ scrolling with =C-u= / =C-d=, bind directly on =evil-normal-state-map= /
 * Lookup Overrides
 
 #+begin_src elisp
-(map! :nv "gD" #'+lookup/references)
+(after! eglot
+  (evil-define-key 'normal eglot-mode-map (kbd "gD") #'+lookup/references))
 #+end_src
 
 * IJKL Navigation Setup
@@ -323,12 +328,21 @@ remapping doesn't reach it. We bind directly into =evil-treemacs-state-map=.
 
 *** Vterm
 
-Press =C= in normal state to toggle =vterm-copy-mode= (freezes the display so
-you can scroll and yank history; press =C= again or =;= to return to the live
-terminal).
+Prevent vterm from auto-scrolling to the bottom when new output arrives and the
+user has scrolled up to read history. When the user scrolls up, we enter
+=vterm-copy-mode= which freezes the display (the underlying process keeps
+running). Scrolling back to the bottom exits copy mode automatically.
 
 #+begin_src elisp
 (after! vterm
+  (add-hook 'window-scroll-functions
+    (defun +vterm-toggle-copy-mode (window &rest _)
+      (when (eq major-mode 'vterm-mode)
+        (with-selected-window window
+          (if (>= (window-end window t) (point-max))
+              (when vterm-copy-mode (vterm-copy-mode-done nil))
+            (unless vterm-copy-mode (vterm-copy-mode 1)))))))
+
   (evil-define-key 'insert vterm-mode-map
     (kbd "C-r") #'vterm--self-insert)
 
@@ -360,8 +374,7 @@ terminal).
         :nv "k" #'evil-next-line
         :nv "j" #'evil-backward-char
         :nv "l" #'evil-forward-char
-        :nv ";" #'evil-insert
-        :n  "C" #'vterm-copy-mode))
+        :nv ";" #'evil-insert))
 #+end_src
 *** Org Mode (evil-org)
 
@@ -500,10 +513,8 @@ type diagnostics and Biome lint warnings inline.
 #+begin_src elisp
 (defun my/vterm-here ()
   (interactive)
-  (let* ((default-directory (file-name-directory (or buffer-file-name default-directory)))
-         (window (split-window (frame-root-window) -15 'below)))
-    (select-window window)
-    (+vterm/here nil)))
+  (let ((default-directory (file-name-directory (or buffer-file-name default-directory))))
+    (vterm (generate-new-buffer-name "vterm"))))
 
 (map! :leader
       :desc "vterm at file dir"
@@ -567,7 +578,8 @@ Agent), work laptop uses =~/.config/doom= (OpenCode with Cloudflare SSO).
                             (string-trim
                              (with-temp-buffer
                                (insert-file-contents "~/.claude-code-key")
-                               (buffer-string))))))))
+                               (buffer-string))))))
+          (setq agent-shell-anthropic-default-model-id "claude-opus-4-6")))
     (progn
       (setq agent-shell-preferred-agent-config 'opencode)
       (after! agent-shell-opencode
