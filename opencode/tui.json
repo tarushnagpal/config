@@ -1,15 +1,16 @@
-
 {
-    "$schema": "https://opencode.ai/tui.json",
-    "keybinds": {
-        "leader": "9",
-        "messages_line_up": "<leader>i",
-        "messages_line_down": "<leader>k",
-        "messages_half_page_up": "<leader>u",
-        "messages_half_page_down": "<leader>d",
-        "messages_undo": "<leader>w",
-        "command_list": "<leader>p",
+	"$schema": "https://opencode.ai/tui.json",
+	"keybinds": {
+		"leader": "\\",
+		"messages_line_up": "<leader>i",
+		"messages_line_down": "<leader>k",
+		"messages_half_page_up": "ctrl+u",
+		"messages_half_page_down": "ctrl+d",
+		"messages_undo": "<leader>w",
+		"command_list": "<leader>p",
 		"messages_last": "<leader>$",
-		"messages_first": "<leader>0"
-    }
+		"messages_first": "<leader>0",
+		"input_delete": "none",
+		"input_delete_to_line_start": "none"
+	}
 }
