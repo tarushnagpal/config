@@ -268,9 +268,9 @@ themes {
             emphasis_3 104 104 104
         }
         frame_selected {
-            base 83 189 250
+            base 104 104 104
             background 11 14 20
-            emphasis_0 83 189 250
+            emphasis_0 104 104 104
             emphasis_1 144 225 198
             emphasis_2 255 180 84
             emphasis_3 205 161 250
@@ -284,9 +284,9 @@ themes {
             emphasis_3 104 104 104
         }
         frame_highlight {
-            base 83 189 250
+            base 104 104 104
             background 11 14 20
-            emphasis_0 83 189 250
+            emphasis_0 104 104 104
             emphasis_1 144 225 198
             emphasis_2 255 180 84
             emphasis_3 205 161 250
@@ -417,7 +417,7 @@ default_layout "default"
 //   - true (default, enabled)
 //   - false
 // 
-pane_frames true
+pane_frames false
  
 // When attaching to an existing session with other users,
 // should the session be mirrored (true)
