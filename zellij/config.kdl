@@ -252,76 +252,76 @@ keybinds clear-defaults=true {
 themes {
     true-dark-theme {
         ribbon_selected {
-            base 228 232 244
-            background 58 58 66
-            emphasis_0 200 208 224
-            emphasis_1 160 168 184
-            emphasis_2 228 232 244
-            emphasis_3 200 208 224
+            base 191 189 182
+            background 27 58 91
+            emphasis_0 83 189 250
+            emphasis_1 144 225 198
+            emphasis_2 255 180 84
+            emphasis_3 205 161 250
         }
         ribbon_unselected {
-            base 106 106 106
-            background 13 13 13
-            emphasis_0 80 80 80
-            emphasis_1 106 106 106
-            emphasis_2 80 80 80
-            emphasis_3 106 106 106
+            base 104 104 104
+            background 11 14 20
+            emphasis_0 30 35 43
+            emphasis_1 104 104 104
+            emphasis_2 30 35 43
+            emphasis_3 104 104 104
         }
         frame_selected {
-            base 74 74 82
-            background 0 0 0
-            emphasis_0 74 74 82
-            emphasis_1 74 74 82
-            emphasis_2 74 74 82
-            emphasis_3 74 74 82
+            base 104 104 104
+            background 11 14 20
+            emphasis_0 104 104 104
+            emphasis_1 144 225 198
+            emphasis_2 255 180 84
+            emphasis_3 205 161 250
         }
         frame_unselected {
-            base 26 26 26
-            background 0 0 0
-            emphasis_0 26 26 26
-            emphasis_1 26 26 26
-            emphasis_2 26 26 26
-            emphasis_3 26 26 26
+            base 30 35 43
+            background 11 14 20
+            emphasis_0 30 35 43
+            emphasis_1 104 104 104
+            emphasis_2 30 35 43
+            emphasis_3 104 104 104
         }
         frame_highlight {
-            base 90 90 100
-            background 0 0 0
-            emphasis_0 90 90 100
-            emphasis_1 90 90 100
-            emphasis_2 90 90 100
-            emphasis_3 90 90 100
+            base 104 104 104
+            background 11 14 20
+            emphasis_0 104 104 104
+            emphasis_1 144 225 198
+            emphasis_2 255 180 84
+            emphasis_3 205 161 250
         }
         text_unselected {
-            base 106 106 106
-            background 0 0 0
-            emphasis_0 160 168 184
-            emphasis_1 106 106 106
-            emphasis_2 80 80 80
-            emphasis_3 106 106 106
+            base 104 104 104
+            background 11 14 20
+            emphasis_0 191 189 182
+            emphasis_1 104 104 104
+            emphasis_2 30 35 43
+            emphasis_3 104 104 104
         }
         text_selected {
-            base 228 232 244
-            background 42 42 46
-            emphasis_0 200 208 224
-            emphasis_1 160 168 184
-            emphasis_2 228 232 244
-            emphasis_3 200 208 224
+            base 191 189 182
+            background 30 35 43
+            emphasis_0 83 189 250
+            emphasis_1 144 225 198
+            emphasis_2 255 180 84
+            emphasis_3 191 189 182
         }
         exit_code_success {
-            base 160 168 184
-            background 0 0 0
-            emphasis_0 160 168 184
-            emphasis_1 160 168 184
-            emphasis_2 160 168 184
-            emphasis_3 160 168 184
+            base 170 217 76
+            background 11 14 20
+            emphasis_0 170 217 76
+            emphasis_1 127 217 98
+            emphasis_2 170 217 76
+            emphasis_3 127 217 98
         }
         exit_code_error {
-            base 180 100 100
-            background 0 0 0
-            emphasis_0 180 100 100
-            emphasis_1 180 100 100
-            emphasis_2 180 100 100
-            emphasis_3 180 100 100
+            base 240 113 120
+            background 11 14 20
+            emphasis_0 240 113 120
+            emphasis_1 234 108 115
+            emphasis_2 240 113 120
+            emphasis_3 234 108 115
         }
     }
 }
@@ -391,7 +391,7 @@ default_mode "normal"
 // The name of the default layout to load on startup
 // Default: "default"
 // 
-default_layout "compact"
+default_layout "default"
  
 // The folder in which Zellij will look for layouts
 // (Requires restart)

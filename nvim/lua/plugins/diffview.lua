@@ -8,5 +8,25 @@ return {
     { "<Leader>gH", "<Cmd>DiffviewFileHistory<CR>", desc = "File history (repo)" },
     { "<Leader>gq", "<Cmd>DiffviewClose<CR>", desc = "Close Diffview" },
   },
-  opts = {},
+  opts = function()
+    local actions = require "diffview.actions"
+
+    return {
+      keymaps = {
+        file_panel = {
+          { "n", "i", actions.prev_entry, { desc = "Previous entry" } },
+          { "n", "k", actions.next_entry, { desc = "Next entry" } },
+          { "n", "j", actions.close_fold, { desc = "Collapse fold" } },
+          { "n", "l", actions.select_entry, { desc = "Open entry" } },
+          { "n", "I", actions.listing_style, { desc = "Toggle listing style" } },
+        },
+        file_history_panel = {
+          { "n", "i", actions.prev_entry, { desc = "Previous entry" } },
+          { "n", "k", actions.next_entry, { desc = "Next entry" } },
+          { "n", "j", actions.close_fold, { desc = "Collapse fold" } },
+          { "n", "l", actions.select_entry, { desc = "Open entry" } },
+        },
+      },
+    }
+  end,
 }
