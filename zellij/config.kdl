@@ -250,78 +250,78 @@ keybinds clear-defaults=true {
 }
 
 themes {
-    true-dark-theme {
+    ayu-mirage {
         ribbon_selected {
-            base 191 189 182
-            background 27 58 91
-            emphasis_0 83 189 250
-            emphasis_1 144 225 198
-            emphasis_2 255 180 84
-            emphasis_3 205 161 250
+            base 204 202 194
+            background 39 67 100
+            emphasis_0 115 208 255
+            emphasis_1 149 230 203
+            emphasis_2 255 209 115
+            emphasis_3 223 191 255
         }
         ribbon_unselected {
-            base 104 104 104
-            background 11 14 20
-            emphasis_0 30 35 43
-            emphasis_1 104 104 104
-            emphasis_2 30 35 43
-            emphasis_3 104 104 104
+            base 112 122 140
+            background 28 33 43
+            emphasis_0 50 56 67
+            emphasis_1 112 122 140
+            emphasis_2 50 56 67
+            emphasis_3 112 122 140
         }
         frame_selected {
-            base 104 104 104
-            background 11 14 20
-            emphasis_0 104 104 104
-            emphasis_1 144 225 198
-            emphasis_2 255 180 84
-            emphasis_3 205 161 250
+            base 112 122 140
+            background 31 36 48
+            emphasis_0 112 122 140
+            emphasis_1 149 230 203
+            emphasis_2 255 209 115
+            emphasis_3 223 191 255
         }
         frame_unselected {
-            base 30 35 43
-            background 11 14 20
-            emphasis_0 30 35 43
-            emphasis_1 104 104 104
-            emphasis_2 30 35 43
-            emphasis_3 104 104 104
+            base 50 56 67
+            background 31 36 48
+            emphasis_0 50 56 67
+            emphasis_1 112 122 140
+            emphasis_2 50 56 67
+            emphasis_3 112 122 140
         }
         frame_highlight {
-            base 104 104 104
-            background 11 14 20
-            emphasis_0 104 104 104
-            emphasis_1 144 225 198
-            emphasis_2 255 180 84
-            emphasis_3 205 161 250
+            base 112 122 140
+            background 31 36 48
+            emphasis_0 112 122 140
+            emphasis_1 149 230 203
+            emphasis_2 255 209 115
+            emphasis_3 223 191 255
         }
         text_unselected {
-            base 104 104 104
-            background 11 14 20
-            emphasis_0 191 189 182
-            emphasis_1 104 104 104
-            emphasis_2 30 35 43
-            emphasis_3 104 104 104
+            base 112 122 140
+            background 31 36 48
+            emphasis_0 204 202 194
+            emphasis_1 112 122 140
+            emphasis_2 50 56 67
+            emphasis_3 112 122 140
         }
         text_selected {
-            base 191 189 182
-            background 30 35 43
-            emphasis_0 83 189 250
-            emphasis_1 144 225 198
-            emphasis_2 255 180 84
-            emphasis_3 191 189 182
+            base 204 202 194
+            background 50 56 67
+            emphasis_0 115 208 255
+            emphasis_1 149 230 203
+            emphasis_2 255 209 115
+            emphasis_3 204 202 194
         }
         exit_code_success {
-            base 170 217 76
-            background 11 14 20
-            emphasis_0 170 217 76
-            emphasis_1 127 217 98
-            emphasis_2 170 217 76
-            emphasis_3 127 217 98
+            base 135 217 108
+            background 31 36 48
+            emphasis_0 135 217 108
+            emphasis_1 213 255 128
+            emphasis_2 135 217 108
+            emphasis_3 213 255 128
         }
         exit_code_error {
-            base 240 113 120
-            background 11 14 20
-            emphasis_0 240 113 120
-            emphasis_1 234 108 115
-            emphasis_2 240 113 120
-            emphasis_3 234 108 115
+            base 255 102 102
+            background 31 36 48
+            emphasis_0 255 102 102
+            emphasis_1 242 135 121
+            emphasis_2 255 102 102
+            emphasis_3 242 135 121
         }
     }
 }
@@ -372,7 +372,7 @@ web_client {
 // Choose the theme that is specified in the themes section.
 // Default: default
 // 
-theme "true-dark-theme"
+theme "ayu-mirage"
  
 // Choose the base input mode of zellij.
 // Default: normal

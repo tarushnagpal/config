@@ -5,13 +5,13 @@ return {
   priority = 1000,
   main = "ayu",
   opts = {
-    mirage = false,
+    mirage = true,
     terminal = true,
     overrides = {
-      Normal = { bg = "#0b0e14", fg = "#bfbdb6" },
-      NormalFloat = { bg = "#11151c", fg = "#bfbdb6" },
-      FloatBorder = { bg = "#11151c", fg = "#53bdfa" },
-      SignColumn = { bg = "#0b0e14" },
+      Normal = { bg = "#1f2430", fg = "#cccac2" },
+      NormalFloat = { bg = "#1c212b", fg = "#cccac2" },
+      FloatBorder = { bg = "#1c212b", fg = "#73d0ff" },
+      SignColumn = { bg = "#1f2430" },
     },
   },
 }
