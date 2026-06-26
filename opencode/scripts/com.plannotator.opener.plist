@@ -1,0 +1,33 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+  <key>Label</key>
+  <string>com.plannotator.opener</string>
+  <key>ProgramArguments</key>
+  <array>
+    <string>/bin/zsh</string>
+    <string>-lc</string>
+    <string>exec "$HOME/.config/opencode/scripts/plannotator-open-listener.py"</string>
+  </array>
+  <key>EnvironmentVariables</key>
+  <dict>
+    <key>PLANNOTATOR_TAILNET_HOST</key>
+    <string>devbox</string>
+    <key>PLANNOTATOR_OPENER_PORT</key>
+    <string>19500</string>
+    <key>PLANNOTATOR_PORT_BASE</key>
+    <string>19432</string>
+    <key>PLANNOTATOR_PORT_COUNT</key>
+    <string>16</string>
+  </dict>
+  <key>RunAtLoad</key>
+  <true/>
+  <key>KeepAlive</key>
+  <true/>
+  <key>StandardOutPath</key>
+  <string>/tmp/plannotator-opener.log</string>
+  <key>StandardErrorPath</key>
+  <string>/tmp/plannotator-opener.log</string>
+</dict>
+</plist>
