@@ -9,6 +9,8 @@
 		"messages_half_page_down": "ctrl+d",
 		"messages_undo": "<leader>w",
 		"command_list": "<leader>p",
+		"dialog.select.prev": "i,up,ctrl+p",
+		"dialog.select.next": "k,down,ctrl+n",
 		"messages_last": "<leader>$",
 		"messages_first": "<leader>0",
 		"input_delete": "none",
