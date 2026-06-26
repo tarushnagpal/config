@@ -133,6 +133,8 @@ automatically-unhide-macos-hidden-apps = false
     alt-c = 'workspace C'
     alt-d = 'workspace D'
     alt-v = 'workspace V'
+    alt-n = 'workspace N'
+    alt-m = 'workspace M'
 
     # See: https://nikitabobko.github.io/AeroSpace/commands#move-node-to-workspace
     alt-shift-1 = 'move-node-to-workspace 1'
@@ -150,6 +152,7 @@ automatically-unhide-macos-hidden-apps = false
     alt-shift-d = 'move-node-to-workspace D'
     alt-shift-v = 'move-node-to-workspace V'
     alt-shift-p = 'move-node-to-workspace P'
+    alt-shift-n = 'move-node-to-workspace N'
 
     # See: https://nikitabobko.github.io/AeroSpace/commands#workspace-back-and-forth
     alt-tab = 'workspace-back-and-forth'
@@ -194,32 +197,11 @@ automatically-unhide-macos-hidden-apps = false
 if.app-id = 'company.thebrowser.Browser'
 run = 'move-node-to-workspace 1'
 
-# Workspace 2
-[[on-window-detected]]
-if.app-id = 'dev.warp.Warp-Stable'
-run = 'move-node-to-workspace 2'
-
-[[on-window-detected]]
-if.app-id = 'com.github.wez.wezterm'
-run = 'move-node-to-workspace 2'
-
 [[on-window-detected]]
 if.app-id = 'com.mitchellh.ghostty'
-run = 'move-node-to-workspace 2'
+run = 'move-node-to-workspace 1'
 
 # Workspace C(chat)
 [[on-window-detected]]
 if.app-id = 'com.tinyspeck.slackmacgap'
 run = 'move-node-to-workspace C'
-
-[[on-window-detected]]
-if.app-id = 'com.google.Chrome.app.mdpkiolbdkhdjpekfbkbmhigcaggjagi'
-run = 'move-node-to-workspace C'
-
-[[on-window-detected]]
-if.app-id = 'com.microsoft.VSCode'
-run = 'move-node-to-workspace 1'
-
-[[on-window-detected]]
-if.app-id = 'com.exafunction.windsurf'
-run = 'move-node-to-workspace 1'
