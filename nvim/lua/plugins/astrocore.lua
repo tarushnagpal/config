@@ -22,6 +22,16 @@ return {
       virtual_text = true,
       underline = true,
     },
+    autocmds = {
+      markdown_wrap = {
+        {
+          event = "FileType",
+          pattern = "markdown",
+          desc = "Enable wrap for Markdown buffers",
+          callback = function() vim.opt_local.wrap = true end,
+        },
+      },
+    },
     -- vim options can be configured here
     options = {
       opt = { -- vim.opt.<key>
@@ -44,11 +54,15 @@ return {
     --       expr-based smart j/k mappings.
     mappings = {
       n = {
-        -- Window navigation (Leader + w + ijkl)
-        ["<Leader>wj"] = { "<C-w>h", desc = "Window left" },
-        ["<Leader>wi"] = { "<C-w>k", desc = "Window up" },
-        ["<Leader>wk"] = { "<C-w>j", desc = "Window down" },
-        ["<Leader>wl"] = { "<C-w>l", desc = "Window right" },
+        -- Window navigation and resizing (Leader + w + IJKL)
+        ["<Leader>wj"] = { function() require("smart-splits").move_cursor_left() end, desc = "Window left" },
+        ["<Leader>wi"] = { function() require("smart-splits").move_cursor_up() end, desc = "Window up" },
+        ["<Leader>wk"] = { function() require("smart-splits").move_cursor_down() end, desc = "Window down" },
+        ["<Leader>wl"] = { function() require("smart-splits").move_cursor_right() end, desc = "Window right" },
+        ["<Leader>wJ"] = { function() require("smart-splits").resize_left() end, desc = "Resize window left" },
+        ["<Leader>wI"] = { function() require("smart-splits").resize_up() end, desc = "Resize window up" },
+        ["<Leader>wK"] = { function() require("smart-splits").resize_down() end, desc = "Resize window down" },
+        ["<Leader>wL"] = { function() require("smart-splits").resize_right() end, desc = "Resize window right" },
 
         -- Navigate buffer tabs
         ["]b"] = { function() require("astrocore.buffer").nav(vim.v.count1) end, desc = "Next buffer" },
