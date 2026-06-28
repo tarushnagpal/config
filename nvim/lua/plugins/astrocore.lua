@@ -3,6 +3,51 @@
 -- NOTE: We highly recommend setting up the Lua Language Server (`:LspInstall lua_ls`)
 --       as this provides autocomplete and documentation while editing
 
+local function url_under_cursor()
+  local line = vim.api.nvim_get_current_line()
+  local cursor_col = vim.api.nvim_win_get_cursor(0)[2] + 1
+
+  for start_col, url in line:gmatch "()(https?://%S+)" do
+    local end_col = start_col + #url - 1
+    if start_col <= cursor_col and cursor_col <= end_col then
+      return url:gsub([[[%]%)}>'"`,.;:]+$]], "")
+    end
+  end
+end
+
+local function open_url_on_host()
+  local url = url_under_cursor()
+  if not url then
+    vim.notify("No URL under cursor", vim.log.levels.WARN, { title = "gx" })
+    return
+  end
+
+  if not vim.env.PLANNOTATOR_LAPTOP_HOST or vim.env.PLANNOTATOR_LAPTOP_HOST == "" then
+    vim.notify("PLANNOTATOR_LAPTOP_HOST is not set", vim.log.levels.ERROR, { title = "gx" })
+    return
+  end
+
+  local opener = vim.env.PLANNOTATOR_BROWSER
+  if not opener or opener == "" then opener = vim.fn.expand "~/.config/opencode/scripts/plannotator-browser.sh" end
+
+  if vim.fn.executable(opener) ~= 1 then
+    local fallback = "/home/ubuntu/workspace/personal/config/opencode/scripts/plannotator-browser.sh"
+    if vim.fn.executable(fallback) == 1 then
+      opener = fallback
+    else
+      vim.notify("Cannot find plannotator-browser.sh", vim.log.levels.ERROR, { title = "gx" })
+      return
+    end
+  end
+
+  local job = vim.fn.jobstart({ opener, url }, { detach = true })
+  if job <= 0 then
+    vim.notify("Failed to launch host URL opener", vim.log.levels.ERROR, { title = "gx" })
+  else
+    vim.notify("Opening on host: " .. url, vim.log.levels.INFO, { title = "gx" })
+  end
+end
+
 ---@type LazySpec
 return {
   "AstroNvim/astrocore",
@@ -80,6 +125,9 @@ return {
 
         -- Toggle terminal
         ["<Leader>t"] = { "<Cmd>ToggleTerm<CR>", desc = "Toggle terminal" },
+
+        -- Reuse the OpenCode/Plannotator host-browser bridge for app-server links.
+        gx = { open_url_on_host, desc = "Open URL on host" },
       },
     },
   },

@@ -59,14 +59,24 @@ def is_allowed_url(raw_url: str) -> Tuple[bool, str]:
     except ValueError as exc:
         return False, f"invalid URL: {exc}"
 
-    if parsed.scheme != "http":
-        return False, "scheme must be http"
+    if parsed.scheme not in {"http", "https"}:
+        return False, "scheme must be http or https"
 
     host = (parsed.hostname or "").lower().rstrip(".")
+    if not host:
+        return False, "missing host"
+
+    try:
+        port = parsed.port
+    except ValueError as exc:
+        return False, f"invalid port: {exc}"
+
+    if parsed.scheme == "https":
+        return True, "ok"
+
     if host not in ALLOWED_HOSTS:
         return False, f"host {host!r} not allowed"
 
-    port = parsed.port
     if port is None or not (PORT_MIN <= port <= PORT_MAX):
         return False, f"port must be in {PORT_MIN}-{PORT_MAX}"
 
