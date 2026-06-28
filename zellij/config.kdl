@@ -112,6 +112,18 @@ keybinds clear-defaults=true {
             }
             SwitchToMode "normal"
         }
+        bind "i" {
+            Run "bash" "/home/ubuntu/workspace/personal/config/zellij/switch-session.sh" "prev" {
+                close_on_exit true
+            }
+            SwitchToMode "normal"
+        }
+        bind "k" {
+            Run "bash" "/home/ubuntu/workspace/personal/config/zellij/switch-session.sh" "next" {
+                close_on_exit true
+            }
+            SwitchToMode "normal"
+        }
         bind "l" {
             LaunchOrFocusPlugin "zellij:layout-manager" {
                 floating true
