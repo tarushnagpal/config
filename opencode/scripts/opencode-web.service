@@ -1,0 +1,16 @@
+[Unit]
+Description=OpenCode web server
+After=network-online.target tailscaled.service
+Wants=network-online.target
+
+[Service]
+Type=simple
+Environment=OPENCODE_WEB_ENV_FILE=%h/.local/state/opencode-web.env
+Environment=PATH=%h/.opencode/bin:/usr/local/bin:/usr/bin:/bin
+ExecStart=%h/.config/opencode/scripts/opencode-web-start.sh
+Restart=always
+RestartSec=3
+WorkingDirectory=%h/workspace/proximal/mono
+
+[Install]
+WantedBy=default.target

@@ -1,6 +1,8 @@
 ---
 description: Answer questions directly without planning, Plannotator, task delegation, or code changes.
 mode: primary
+model: openai/gpt-5.5
+variant: high
 color: warning
 permission:
   read: allow

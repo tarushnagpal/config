@@ -43,14 +43,7 @@ def parse_allowed_hosts() -> Set[str]:
     return {h.lower().rstrip(".") for h in hosts}
 
 
-def parse_port_range() -> Tuple[int, int]:
-    base = int(os.environ.get("PLANNOTATOR_PORT_BASE", "19432"))
-    count = int(os.environ.get("PLANNOTATOR_PORT_COUNT", "16"))
-    return base, base + count - 1
-
-
 ALLOWED_HOSTS = parse_allowed_hosts()
-PORT_MIN, PORT_MAX = parse_port_range()
 
 
 def is_allowed_url(raw_url: str) -> Tuple[bool, str]:
@@ -67,7 +60,7 @@ def is_allowed_url(raw_url: str) -> Tuple[bool, str]:
         return False, "missing host"
 
     try:
-        port = parsed.port
+        _ = parsed.port
     except ValueError as exc:
         return False, f"invalid port: {exc}"
 
@@ -76,9 +69,6 @@ def is_allowed_url(raw_url: str) -> Tuple[bool, str]:
 
     if host not in ALLOWED_HOSTS:
         return False, f"host {host!r} not allowed"
-
-    if port is None or not (PORT_MIN <= port <= PORT_MAX):
-        return False, f"port must be in {PORT_MIN}-{PORT_MAX}"
 
     return True, "ok"
 
@@ -142,7 +132,7 @@ def main() -> int:
         time.sleep(5)
 
     server = http.server.ThreadingHTTPServer((bind_host, port), Handler)
-    log(f"listening on http://{bind_host}:{port}/open; allowed_hosts={sorted(ALLOWED_HOSTS)} ports={PORT_MIN}-{PORT_MAX}")
+    log(f"listening on http://{bind_host}:{port}/open; allowed_http_hosts={sorted(ALLOWED_HOSTS)}")
     server.serve_forever()
     return 0
 

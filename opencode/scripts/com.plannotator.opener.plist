@@ -19,7 +19,7 @@
     <key>PLANNOTATOR_PORT_BASE</key>
     <string>19432</string>
     <key>PLANNOTATOR_PORT_COUNT</key>
-    <string>16</string>
+    <string>64</string>
   </dict>
   <key>RunAtLoad</key>
   <true/>
