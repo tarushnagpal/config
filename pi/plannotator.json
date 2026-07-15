@@ -1,0 +1,13 @@
+{
+  "phases": {
+    "planning": {
+      "model": null,
+      "thinking": "xhigh",
+      "statusLabel": ""
+    },
+    "executing": {
+      "model": null,
+      "thinking": "xhigh"
+    }
+  }
+}

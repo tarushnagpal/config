@@ -1,0 +1,13 @@
+{
+  "lastChangelogVersion": "0.80.6",
+  "theme": "midnight-navy",
+  "defaultProvider": "openai",
+  "defaultModel": "gpt-5.6-sol",
+  "defaultThinkingLevel": "xhigh",
+  "packages": [
+    "npm:pi-web-access",
+    "npm:@plannotator/pi-extension@0.23.1",
+    "npm:@tintinweb/pi-subagents@0.13.0"
+  ],
+  "hideThinkingBlock": false
+}
