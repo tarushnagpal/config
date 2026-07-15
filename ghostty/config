@@ -2,6 +2,9 @@ font-family = JetBrains Mono
 font-size = 15
 
 theme = Ayu Mirage
+background = #0e1729
+selection-background = #243456
+selection-foreground = #dce7f3
 
 keybind = ctrl+tab=unbind
 keybind = ctrl+shift+tab=unbind

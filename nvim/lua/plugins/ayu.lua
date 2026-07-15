@@ -1,3 +1,10 @@
+local background = "#0e1729"
+local surface = "#131d30"
+local subtle = "#16243d"
+local selected = "#243456"
+local border = "#526aa3"
+local foreground = "#cccac2"
+
 ---@type LazySpec
 return {
   "Shatur/neovim-ayu",
@@ -8,10 +15,19 @@ return {
     mirage = true,
     terminal = true,
     overrides = {
-      Normal = { bg = "#1f2430", fg = "#cccac2" },
-      NormalFloat = { bg = "#1c212b", fg = "#cccac2" },
-      FloatBorder = { bg = "#1c212b", fg = "#73d0ff" },
-      SignColumn = { bg = "#1f2430" },
+      Normal = { bg = background, fg = foreground },
+      NormalNC = { bg = background },
+      NormalFloat = { bg = surface, fg = foreground },
+      FloatBorder = { bg = surface, fg = border },
+      SignColumn = { bg = background },
+      FoldColumn = { bg = background },
+      CursorLine = { bg = subtle },
+      Visual = { bg = selected },
+      Pmenu = { bg = surface, fg = foreground },
+      PmenuSel = { bg = selected, fg = "#dce7f3" },
+      StatusLine = { bg = surface, fg = foreground },
+      StatusLineNC = { bg = background, fg = border },
+      WinSeparator = { bg = background, fg = "#354665" },
     },
   },
 }
