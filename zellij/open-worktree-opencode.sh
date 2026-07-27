@@ -1,6 +1,10 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd -P)"
+# shellcheck source=worktree-container-lib.sh
+source "$SCRIPT_DIR/worktree-container-lib.sh"
+
 die() {
     printf 'error: %s\n' "$*" >&2
     exit 1
@@ -10,17 +14,7 @@ worktree_dir="${1:-$PWD}"
 [[ -d "$worktree_dir" ]] || die "worktree directory does not exist: $worktree_dir"
 worktree_dir="$(cd "$worktree_dir" && pwd -P)"
 
-search_dir="$worktree_dir"
-container_root=""
-
-while [[ "$search_dir" != "/" ]]; do
-    if [[ -d "$search_dir/.bare" ]]; then
-        container_root="$search_dir"
-        break
-    fi
-    search_dir="$(dirname "$search_dir")"
-done
-
+container_root="$(worktree_find_container_root "$worktree_dir" || true)"
 if [[ -z "$container_root" ]]; then
     container_root="$worktree_dir"
 fi
