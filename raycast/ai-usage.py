@@ -72,10 +72,10 @@ def http_json(url, headers, body=None):
         raise UsageError(f"HTTP {e.code}: {e.read()[:160].decode(errors='replace')}")
 
 
-def bar(pct, width=20):
-    pct = max(0.0, min(100.0, float(pct)))
-    filled = round(pct / 100 * width)
-    return "█" * filled + "░" * (width - filled) + f" {pct:5.1f}%"
+def bar(left_pct, width=20):
+    left_pct = max(0.0, min(100.0, float(left_pct)))
+    filled = round(left_pct / 100 * width)
+    return "█" * filled + "░" * (width - filled) + f" {left_pct:5.1f}% left"
 
 
 def until(when):
@@ -94,8 +94,9 @@ def until(when):
     return f"  resets in {span} ({when.astimezone().strftime('%a %H:%M')})"
 
 
-def row(label, pct, resets=None):
-    return f"  {label:<14}{bar(pct)}{until(resets)}"
+def row(label, used_pct, resets=None, detail=""):
+    """One limit line; takes the *used* percent but draws what's left."""
+    return f"  {label:<14}{bar(100 - float(used_pct))}{detail}{until(resets)}"
 
 
 # ---------- Claude ----------
@@ -230,10 +231,66 @@ def respan_key():
     return key
 
 
+RESPAN_PERIODS = {"minute": 60, "hour": 3600, "day": 86400, "week": 604800, "month": 2678400}
+RESPAN_PERIOD_LABELS = {"hour": "Hourly limit", "day": "Daily limit", "week": "Weekly limit", "month": "Monthly limit"}
+
+
+def respan_hard_rule(policy):
+    return next(
+        (r for r in policy.get("rules") or [] if r.get("severity") == "hard" and r.get("is_active") is not False),
+        None,
+    )
+
+
+def respan_policy_applies(p, key_hash, now):
+    # Same selection rules as the pi respan-usage extension.
+    def parse(ts):
+        return dt.datetime.fromisoformat(ts.replace("Z", "+00:00"))
+
+    return (
+        p.get("scope") == "api_key_id"
+        and str(p.get("scope_value", "")).endswith(f".sha512$${key_hash}")
+        and not p.get("compose")
+        and p.get("metric") == "cost"
+        and p.get("is_active") is True
+        and p.get("algorithm") in (None, "balance_fixed_window")
+        and (p.get("effective_at") is None or parse(p["effective_at"]) <= now)
+        and (p.get("expires_at") is None or parse(p["expires_at"]) > now)
+    )
+
+
+def respan_limits(key, key_hash):
+    """Cost limit policies on this key, most relevant (hard, shortest period) first."""
+    now = dt.datetime.now(dt.timezone.utc)
+    url, policies = "https://api.respan.ai/api/limit-policies/", []
+    for _ in range(20):  # pagination guard
+        page = http_json(url, {"Authorization": f"Bearer {key}"})
+        policies += [p for p in page.get("results") or [] if respan_policy_applies(p, key_hash, now)]
+        url = page.get("next")
+        if not url:
+            break
+    policies.sort(key=lambda p: (respan_hard_rule(p) is None, RESPAN_PERIODS.get(p.get("period"), float("inf"))))
+
+    lines = []
+    for p in policies:
+        rule = respan_hard_rule(p)
+        counter = ((rule or {}).get("trigger") or {}).get("counter") or {}
+        limit = counter.get("value") if rule else p.get("threshold_value")
+        state = p.get("current_state") or {}
+        spent = state.get("current_value")
+        if not limit or spent is None:
+            continue
+        label = RESPAN_PERIOD_LABELS.get(p.get("period"), f"{p.get('period')} limit")
+        detail = f"  ${max(0.0, limit - spent):.2f} of ${limit:g}"
+        lines.append(row(label, spent / limit * 100, state.get("interval_end"), detail))
+    return lines
+
+
 def respan():
     key = respan_key()
+    key_hash = hashlib.sha512(key.encode()).hexdigest()
     # Logs are org-wide; Respan identifies a key as "<prefix>.sha512$$<sha512(key)>".
-    key_id = f"{key.split('.')[0]}.sha512$${hashlib.sha512(key.encode()).hexdigest()}"
+    key_id = f"{key.split('.')[0]}.sha512$${key_hash}"
     now = dt.datetime.now().astimezone()
     today = now.replace(hour=0, minute=0, second=0, microsecond=0)
     ranges = [("Today", today), ("This month", today.replace(day=1))]
@@ -247,7 +304,9 @@ def respan():
             {"filters": {"organization_key_id": {"operator": "", "value": [key_id]}}},
         )
 
-    lines = []
+    lines = respan_limits(key, key_hash)
+    if lines:
+        ranges = ranges[1:]  # the limit already covers today's spend
     for label, start in ranges:
         s = summary(start)
         tokens = (s.get("total_tokens") or 0) / 1e6

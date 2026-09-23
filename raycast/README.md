@@ -2,7 +2,7 @@
 
 ## AI Usage (`ai-usage.py`)
 
-Shows Claude and Codex plan limits (session + weekly, with reset times) and Respan spend for your own key (today + this month).
+Shows how much is left on Claude and Codex plan limits (session + weekly, with reset times) and on your Respan key's spending limit, plus Respan spend this month.
 
 ### Setup (macOS)
 
@@ -24,4 +24,4 @@ On first run, macOS asks whether `security` may read the "Claude Code-credential
 | --- | --- |
 | Claude | `api.anthropic.com/api/oauth/usage` using Claude Code's OAuth token (read-only; the token is never refreshed here) |
 | Codex | `codex app-server` → `account/rateLimits/read`, using Codex's own login |
-| Respan | `api.respan.ai/api/request-logs/summary`, filtered to your key (logs are org-wide) |
+| Respan | limit: `api.respan.ai/api/limit-policies/` (same policy selection as the pi `respan-usage` extension); spend: `api.respan.ai/api/request-logs/summary`, filtered to your key (logs are org-wide) |
