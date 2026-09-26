@@ -8,14 +8,15 @@
 # Optional parameters:
 # @raycast.packageName AI
 # @raycast.icon 📊
-# @raycast.description Claude + Codex plan limits and Respan spend
+# @raycast.description Claude Max, Claude Team, Codex limits, and Respan spend
 
 """Show Claude/Codex subscription limits and Respan gateway spend.
 
 Credentials are read from where the tools already keep them; nothing is stored here:
-  - Claude: macOS keychain item "Claude Code-credentials" (fallback ~/.claude/.credentials.json)
-  - Codex:  asks the `codex` binary via `codex app-server` (uses its own login)
-  - Respan: $RESPAN_API_KEY, ~/.keys/respan_key.txt, or keychain item "respan-api-key"
+  - Claude Max:  macOS keychain item "Claude Code-credentials" (fallback ~/.claude/.credentials.json)
+  - Claude Team: keychain item for ~/.claude-team (fallback ~/.claude-team/.credentials.json)
+  - Codex:       asks the `codex` binary via `codex app-server` (uses its own login)
+  - Respan:      $RESPAN_API_KEY, ~/.keys/respan_key.txt, or keychain item "respan-api-key"
 """
 
 import datetime as dt
@@ -26,6 +27,7 @@ import os
 import shutil
 import subprocess
 import sys
+import unicodedata
 import urllib.error
 import urllib.request
 from concurrent.futures import ThreadPoolExecutor
@@ -109,20 +111,58 @@ CLAUDE_WINDOWS = [
 ]
 
 
-def claude():
-    raw = keychain("Claude Code-credentials")
+CLAUDE_TEAM_DIR = f"{HOME}/.claude-team"
+
+
+def claude_keychain_service(config_dir):
+    """Match Claude Code: default item, or Claude Code-credentials-<sha256(dir)[:8]>."""
+    if config_dir is None:
+        return "Claude Code-credentials"
+    normalized = unicodedata.normalize("NFC", os.path.abspath(os.path.expanduser(config_dir)))
+    suffix = hashlib.sha256(normalized.encode()).hexdigest()[:8]
+    return f"Claude Code-credentials-{suffix}"
+
+
+def claude_credentials_path(config_dir):
+    if config_dir is None:
+        return f"{HOME}/.claude/.credentials.json"
+    return os.path.join(os.path.abspath(os.path.expanduser(config_dir)), ".credentials.json")
+
+
+def claude_org_name(config_dir):
+    path = f"{HOME}/.claude.json" if config_dir is None else os.path.join(
+        os.path.abspath(os.path.expanduser(config_dir)), ".claude.json"
+    )
+    try:
+        account = json.load(open(path)).get("oauthAccount") or {}
+    except (OSError, json.JSONDecodeError):
+        return None
+    name = account.get("organizationName")
+    return name or None
+
+
+def claude_title(subscription, org):
+    if subscription == "max":
+        return "Claude Max"
+    if subscription == "team":
+        return f"Claude Team ({org})" if org else "Claude Team"
+    return f"Claude ({subscription})" if subscription else "Claude"
+
+
+def claude_account(config_dir, login_hint):
+    raw = keychain(claude_keychain_service(config_dir))
+    path = claude_credentials_path(config_dir)
     if raw is None:
-        path = f"{HOME}/.claude/.credentials.json"
         if not os.path.exists(path):
-            raise UsageError("no Claude Code login found (run `claude` and log in)")
+            raise UsageError(f"no Claude login ({login_hint})")
         raw = open(path).read()
     oauth = json.loads(raw).get("claudeAiOauth") or {}
     token = oauth.get("accessToken")
     if not token:
-        raise UsageError("no OAuth token in Claude credentials")
+        raise UsageError(f"no OAuth token in Claude credentials ({login_hint})")
     # Don't refresh the token ourselves: rotating it could sign Claude Code out.
     if oauth.get("expiresAt") and oauth["expiresAt"] / 1000 < dt.datetime.now().timestamp():
-        raise UsageError("Claude token expired; run `claude` once to refresh it")
+        raise UsageError(f"Claude token expired; {login_hint}")
 
     d = http_json(
         "https://api.anthropic.com/api/oauth/usage",
@@ -140,8 +180,18 @@ def claude():
             lines.append(row("Extra usage", extra["utilization"]))
         if used is not None:
             lines.append(f"  {'':<14}{used} / {limit} {extra.get('currency') or ''}".rstrip())
-    sub = oauth.get("subscriptionType")
-    return (f"Claude ({sub})" if sub else "Claude"), lines or ["  no usage windows reported"]
+    return claude_title(oauth.get("subscriptionType"), claude_org_name(config_dir)), lines or ["  no usage windows reported"]
+
+
+def claude_max():
+    return claude_account(None, "run `claude` and log in")
+
+
+def claude_team():
+    return claude_account(
+        CLAUDE_TEAM_DIR,
+        "run `CLAUDE_CONFIG_DIR=~/.claude-team claude auth login`",
+    )
 
 
 # ---------- Codex ----------
@@ -320,7 +370,7 @@ def respan():
 # ---------- main ----------
 
 def main():
-    sections = [claude, codex, respan]
+    sections = [claude_max, claude_team, codex, respan]
     with ThreadPoolExecutor(len(sections)) as pool:
         futures = [pool.submit(fn) for fn in sections]
     for fn, fut in zip(sections, futures):
